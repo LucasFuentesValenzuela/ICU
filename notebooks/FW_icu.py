@@ -176,7 +176,7 @@ def update_OD(OD,ri_k, a_k, dummy_nodes, G, evolving_bounds=True):
             
             if d in dummy_nodes.keys() and d!='R': #only the nodes that are the dummy nodes
                 crt_Ulim=OD[o,d]#currently, we treat only the upper limit 
-                crt_p_flow=G[dummy_nodes[d]][d]['f_m']
+                crt_p_flow=G[dummy_nodes[d]][d]['f_m'] #why do we need this? 
                 rel_U_error=abs(crt_p_flow-crt_Ulim)/crt_p_flow
                 # UPPER BOUND
                 if rel_U_error <= l1:#x_k too close to U

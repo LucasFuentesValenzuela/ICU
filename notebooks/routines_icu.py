@@ -34,35 +34,35 @@ def update_costs(G,INVERSE_DEMAND_SHIFT):
 
 
 
-def initEdgeAttr(G,edge_list,k_list,phi_list,is_negative):
+# def initEdgeAttr(G,edge_list,k_list,phi_list,is_negative):
 
-    for i in range(len(edge_list)):
-        e=edge_list[i]
-        G[e[0]][e[1]]['k']=k_list[i]
-        G[e[0]][e[1]]['phi']=phi_list[i]
-        G[e[0]][e[1]]['sign']=(-1)**is_negative[i]
-        G[e[0]][e[1]]['f_m']=0
-        G[e[0]][e[1]]['f_r']=0
+#     for i in range(len(edge_list)):
+#         e=edge_list[i]
+#         G[e[0]][e[1]]['k']=k_list[i]
+#         G[e[0]][e[1]]['phi']=phi_list[i]
+#         G[e[0]][e[1]]['sign']=(-1)**is_negative[i]
+#         G[e[0]][e[1]]['f_m']=0
+#         G[e[0]][e[1]]['f_r']=0
     
-    return G
+#     return G
 
-def initNodeAttr(G,nodes_pots):
+# def initNodeAttr(G,nodes_pots):
 
-    #Node potential
-    for (n,p) in nodes_pots:
-        G.nodes[n]['pot']=p
+#     #Node potential
+#     for (n,p) in nodes_pots:
+#         G.nodes[n]['pot']=p
     
-    #ri_k
-    for n in G.nodes():
-        G.nodes[n]['ri']=0
+#     #ri_k
+#     for n in G.nodes():
+#         G.nodes[n]['ri']=0
 
-    return G
+#     return G
 
-def vect_attribute(G,att):
-    # x=[]
-    x=dict()
-    for e in G.edges():
-        # x.append(G[e[0]][e[1]][att])
-        x[e]=G[e[0]][e[1]][att]
-    return x
+# def vect_attribute(G,att):
+#     # x=[]
+#     x=dict()
+#     for e in G.edges():
+#         # x.append(G[e[0]][e[1]][att])
+#         x[e]=G[e[0]][e[1]][att]
+#     return x
 
