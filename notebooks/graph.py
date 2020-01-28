@@ -6,7 +6,7 @@ import pandas as pd
 from helpers_icu import phi
 import networkx as nx
 from routines_icu import update_costs
-
+from FW_OuterUpdate import init_flows
 
 def construct_graph(path):
 
@@ -14,6 +14,7 @@ def construct_graph(path):
     G=init_graph(edges)
     G=initEdgeAttr(G,edges)
     G=initNodeAttr(G,edges)
+    G=init_flows(G,OD) #check which version to consolidate
     G=update_costs(G) 
 
     return G, OD
@@ -127,7 +128,7 @@ def initNodeAttr(G,edges):
 
     for n in G.nodes():
         if n.endswith('_p'):
-            G.nodes[n]['pot']=max_shift*1.5
+            G.nodes[n]['pot']=np.around(max_shift*1.1,0)
         G.nodes[n]['ri']=0
 
     return G
@@ -147,9 +148,3 @@ def get_edge_list(G):
 
     return l
 
-def get_dummy_nodes(G):
-    dummy_nodes=dict()
-    for n in G.nodes():
-        if n.endswith('_p'):
-            dummy_nodes[n]=n.split('_')[0]
-    return dummy_nodes

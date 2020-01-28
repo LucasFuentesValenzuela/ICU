@@ -286,3 +286,65 @@ def analyze_cost_oscillations_3(G_k,y_k,o,d,lims=None,scale='linear'):
         ax1.set_xlim(lims)
         
     print("Black lines indicate that the assignment variable y_m is activated for the dummy edge")
+    
+
+def get_cost_all_path(G, OD):
+    
+    dict_cost=dict()
+    dict_cost_ID=dict()
+    for (o,d) in OD.keys():
+        x=np.linspace(0,OD[o,d],100)
+        cost_list=[]
+        cost_ID_list=[]
+        for path in nx.all_simple_paths(G,source=o,target=d):
+            cost=np.zeros(x.shape)
+            cost_ID=np.zeros(x.shape) #inverse demand
+            for i in range(len(path)-1):
+                e_0=path[i]
+                e_1=path[i+1]
+                phi=G[e_0][e_1]['phi']
+                k=G[e_0][e_1]['k']
+                cost_crt=BPR(phi,x,k)
+                # if e_1.endswith('_p') and e_0!=e_1.split('_')[0]: #dummy node and not zero cost edge
+                if G[e_0][e_1]['sign']==-1:
+                    cost_crt-=G[e_0][e_1]['shift']
+                    cost_ID-=cost_crt
+                    # cost_ID+=G.nodes[e_1]['pot']
+                else:
+                    cost+=cost_crt
+            cost_list.append(cost)
+            cost_ID_list.append(cost_ID)
+        dict_cost[o,d]=cost_list
+        dict_cost_ID[o,d]=cost_ID_list
+
+    return dict_cost, dict_cost_ID
+
+def plot_cost_all_path(G, OD, o, d):
+    cost, cost_ID = get_cost_all_path(G,OD)
+
+    if (o,d) not in cost.keys():
+        print("Wrong set of o,d chosen")
+        return
+    
+    nplots=len(cost[o,d])
+    _, axes = plt.subplots(nplots, 1, figsize=(13,5*nplots) )
+    for i in range(nplots):
+        crt_=cost[o,d][i]
+        x=np.linspace(0,OD[o,d],100)
+        axes[i].plot(x,crt_, label="cost")
+        axes[i].plot(x,cost_ID[o,d][i], label="ID") 
+        axes[i].grid(True)
+        axes[i].legend()
+        axes[i].set_ylim([0.8*crt_[0], 1.1*crt_[-1]])
+        axes[i].set_title("origin: " + o + ", destination: " + d)
+
+    return
+
+def plot_inv_demand(N, phi, k, shift): 
+    x=np.linspace(0,N,100)
+    INV=-BPR(phi,x,k)+shift
+    plt.figure()
+    plt.plot(x,INV)
+    plt.grid(True)
+    plt.ylim([0, INV[0]*1.2])
+    return

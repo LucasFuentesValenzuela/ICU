@@ -8,7 +8,7 @@ from FW_icu import update_OD,update_capacities, AoN, estimate_ri_k
 from helpers_icu import Value_Total_Cost,print_final_flows, print_final_cost
 from routines_icu import update_costs
 
-def solve(G_0,OD,edge_list,dummy_nodes,tol=10**-6, FW_tol=10**-6):
+def solve(G_0,OD,edge_list,tol=10**-6, FW_tol=10**-6):
     
     #Variables to store at each iterations
 
@@ -24,7 +24,7 @@ def solve(G_0,OD,edge_list,dummy_nodes,tol=10**-6, FW_tol=10**-6):
     #They are already initialized in the case of the icu
     # G_k=init_flows(G_k,OD)
 
-    ri_k,G_k=estimate_ri_k(G_k,dummy_nodes, ri_smoothing=False, a_k=0) 
+    ri_k,G_k=estimate_ri_k(G_k, ri_smoothing=False, a_k=0) 
 
 
     #Save the different variables
@@ -46,8 +46,8 @@ def solve(G_0,OD,edge_list,dummy_nodes,tol=10**-6, FW_tol=10**-6):
         #like start with tol=1 and then divide it by two at every step
 
         G_list,_,_,_=FW_graph_extension(
-            G_k,OD,edge_list,dummy_nodes,ri_k,FW_tol, 
-            step='fixed', evolving_bounds=False)
+            G_k,OD,edge_list, ri_k,FW_tol, 
+            step='fixed', evolving_bounds=False, max_iter=2000)
 
         #solution at previous step
         #important because it basically contains the passenger flows
@@ -56,7 +56,7 @@ def solve(G_0,OD,edge_list,dummy_nodes,tol=10**-6, FW_tol=10**-6):
         
         
         #estimate #ri_k, update OD, assign, update costs
-        ri_new,G_end=estimate_ri_k(G_end,dummy_nodes, ri_smoothing=False, a_k=0)
+        ri_new,G_end=estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
         
         if diff_ri(ri_k,ri_new)<tol:
             # print("flows at the end:")
@@ -92,8 +92,9 @@ def diff_ri(ri_k,ri_new):
 
 
 def FW_graph_extension(
-    G_0,OD,edge_list,dummy_nodes,ri_k,FW_tol=10**-6, 
-    step='line_search', evolving_bounds=True):
+    G_0,OD,edge_list,ri_k,FW_tol=10**-6, 
+    step='line_search', evolving_bounds=True, max_iter=10**3
+    ):
     #python implementation of Kiril's routine
     #ri_t are the estimate of ri at timestep k
 
@@ -116,10 +117,10 @@ def FW_graph_extension(
     #################################
     # update the OD pairs and capacities
     #################################
-    OD=update_OD(OD,ri_k,a_k,dummy_nodes, G_k, evolving_bounds)
+    OD=update_OD(OD,ri_k,a_k, G_k, evolving_bounds)
     print("CURRENT OD:", OD)
     #you update capacities because you have new values of ri_k
-    G_k=update_capacities(G_k,ri_k, dummy_nodes)
+    G_k=update_capacities(G_k,ri_k)
     G_k=update_costs(G_k) #we need to ensure that the information is passed on to the costs
 
     ###################################
@@ -145,7 +146,7 @@ def FW_graph_extension(
         #we just want to reach the "perfect" assignment
 
         #perform AON assignment
-        y_k=AoN(G_k,OD,dummy_nodes) #check if there is a special feature of AON as previously setup that prevents its good implementation
+        y_k=AoN(G_k,OD) #check if there is a special feature of AON as previously setup that prevents its good implementation
         if step == 'line_search':
             # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
             print("not implemented")
@@ -159,7 +160,8 @@ def FW_graph_extension(
         #compute the duality gap
         #based on the current version of y_k and x_k
         duality_gap=compute_duality_gap(G_k, y_k)
-        if duality_gap<FW_tol:
+        # print(duality_gap)
+        if duality_gap<FW_tol or i>=max_iter:
             compute=False
 
         #update the flows
@@ -211,7 +213,7 @@ def fixed_step(G,y_k,edge_list,k):
     #here we actually update both the rebalancing and the passenger flows
     #we need to take both into account because we are solving for a fixed value of the ri's
 
-    gamma=2/(k**1.5+2)#the update step is very important, if it is too large, then we lose the progress we made
+    gamma=2/(k+2)#the update step is very important, if it is too large, then we lose the progress we made
     #currently I put k**1.5 because I want to accelerate the computation slightly
 
     for i in range(len(edge_list)):
@@ -235,6 +237,7 @@ def update_flows(G,y_k,a_k,edge_list):
     return G   
 
 def init_flows(G,OD):
+    #TODO: deal with conflicting version!! 
     #Initiliaze the flows, with a feasible solution
     #still unclear whether we need to initialize the rebalancers appropriately too
 

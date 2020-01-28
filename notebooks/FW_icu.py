@@ -20,12 +20,12 @@ def init_flows(G,OD):
 
 #we currently assign a rebalancing flow to y_k, but this is useless currently
 #as with the new cost function we do not take it into account
-def AoN(G,OD,dummy_nodes):
+def AoN(G,OD):
     #perform the All Or Nothing assignment    
     y_k=init_y(G)
     eps=10**-6
 
-    alpha=1.5 #TODO: what is this alpha for? 
+    alpha=1.5 #TODO: what is this alpha for? ANSWER: for the update below (in comments)
     for (o,d) in OD.keys():
         U=OD[o,d]
         if U>eps:
@@ -50,9 +50,8 @@ def AoN(G,OD,dummy_nodes):
                     y_k[(path[i],path[i+1]),flag]+=U
     return y_k
 
-
 #TODO: do we really need dummy nodes and edge list
-def modified_FW(G_0,OD,edge_list,dummy_nodes,maxIter=50, step='line_search',
+def modified_FW(G_0,OD,edge_list,maxIter=50, step='line_search',
        rebalancer_smoothing=False, ri_smoothing=True,evolving_bounds=True):
 
     #might have to "reorganize" the order of operations, in order to make it more understandable/logical
@@ -80,16 +79,16 @@ def modified_FW(G_0,OD,edge_list,dummy_nodes,maxIter=50, step='line_search',
         
         #deal with rebalancers
         #estimate #ri_k, update OD, assign, update costs
-        ri_k,G_crt=estimate_ri_k(G_crt,dummy_nodes, ri_smoothing, a_k)
-        OD=update_OD(OD,ri_k,a_k,dummy_nodes, G_crt, evolving_bounds)
-        G_crt=update_capacities(G_crt,ri_k, dummy_nodes)
+        ri_k,G_crt=estimate_ri_k(G_crt, ri_smoothing, a_k)
+        OD=update_OD(OD,ri_k,a_k,G_crt, evolving_bounds)
+        G_crt=update_capacities(G_crt,ri_k)
         #for some reason including the above update_costs messes up things
         #TODO: understand really why? 
         G_crt=assign_rebalancers(G_crt,OD,rebalancer_smoothing,a_k)
         G_crt=update_costs(G_crt)
         
         #perform AON assignment
-        y_k=AoN(G_crt,OD,dummy_nodes)
+        y_k=AoN(G_crt,OD)
         if step == 'line_search':
             a_k,obj_k=line_search(G_crt,y_k,edge_list)
         elif step == 'fixed':
@@ -129,7 +128,7 @@ def assign_rebalancers(G,OD, rebalancer_smoothing,a_k):
                 G[path[i]][path[i+1]]['f_r']=(1-beta)*G[path[i]][path[i+1]]['f_r']+beta*N_r #introduce some kind of smoothing of the rebalancing update
     return G
 
-def estimate_ri_k(G,dummy_nodes,ri_smoothing,a_k):
+def estimate_ri_k(G,ri_smoothing,a_k):
     #determine whether each node is in excess or deficit of rebalancers
     ri_k=dict()
     ri_k_prev=dict()
@@ -143,19 +142,19 @@ def estimate_ri_k(G,dummy_nodes,ri_smoothing,a_k):
         ri_k[n]=0
         ri_k_prev[n]=G.nodes[n]["ri"]
     for e in G.edges():
-        if e[1] not in dummy_nodes.keys():
+        if not e[1].endswith('_p') and e[1]!='R':
             ri_k[e[0]]+=G[e[0]][e[1]]['f_m']
             ri_k[e[1]]-=G[e[0]][e[1]]['f_m']
     for n in G.nodes():
         G.nodes[n]["ri"]= (1-beta) * ri_k_prev[n] + beta*ri_k[n]
     return ri_k,G
 
-def update_OD(OD,ri_k, a_k, dummy_nodes, G, evolving_bounds=True):
+def update_OD(OD,ri_k, a_k, G, evolving_bounds=True):
     
     #update the OD pairs for rebalancers
     eps=10**-6
     for n in ri_k.keys():
-        if n!='R' and n not in dummy_nodes.keys():
+        if n!='R' and not n.endswith('_p'):
             if ri_k[n]<-eps: #you are in excess
                 OD[(n,'R')]=-ri_k[n]
             else:
@@ -166,6 +165,8 @@ def update_OD(OD,ri_k, a_k, dummy_nodes, G, evolving_bounds=True):
     #tocode: if x_k on inverse demand edge is too close to upper bound or lower bound you 
     #have to decrease or increase those bounds, respectively
 
+
+    #TODO: improve the evolving bounds routine
     #currently, we keep lower bounds at zero
     if evolving_bounds:
         #parameters, to be given as arguments in the future
@@ -175,13 +176,13 @@ def update_OD(OD,ri_k, a_k, dummy_nodes, G, evolving_bounds=True):
         alpha=1.2 #I think a moving value on that would be better. And same for the l1/l2. should be based o2
         for (o,d) in OD.keys():
             
-            if d in dummy_nodes.keys() and d!='R': #only the nodes that are the dummy nodes
+            if d.endswith('_p'): #only the nodes that are the dummy nodes
                 crt_Ulim=OD[o,d]#currently, we treat only the upper limit 
-                crt_p_flow=G[dummy_nodes[d]][d]['f_m'] #why do we need this? 
+                crt_p_flow = get_total_flow_to_dummy_node(G,d)
                 rel_U_error=abs(crt_p_flow-crt_Ulim)/crt_p_flow
                 # UPPER BOUND
                 if rel_U_error <= l1:#x_k too close to U
-                    new_Ulim=alpha*crt_p_flow
+                    new_Ulim=alpha*crt_Ulim 
                 elif rel_U_error>=l2:#x_k too far from U
                     new_Ulim=alpha*crt_p_flow
                 else:
@@ -190,10 +191,25 @@ def update_OD(OD,ri_k, a_k, dummy_nodes, G, evolving_bounds=True):
 
     return OD
 
-def update_capacities(G,ri_k, dummy_nodes): 
+def get_total_flow_to_dummy_node(G,d):
+    """
+    Computes the total flow going into a dummy node. 
+    This is useful when updating the bound, as the bound is a measure of the max flow that can go into
+    a dummy node. 
+    """
+    flow=0
+
+    for e in G.edges():
+        o_ = d.split('_')[0]
+        if e[1]==d and e[0]!=o_:
+            flow+=G[e[0]][d]['f_m']
+    return flow
+
+
+def update_capacities(G,ri_k): 
     eps=10**-6
     for n in G.nodes():
-        if n not in dummy_nodes.keys() and n!='R':
+        if not n.endswith('_p') and n!='R':
             if ri_k[n]>eps: 
                 G[n]['R']['k']=ri_k[n]
             else:
