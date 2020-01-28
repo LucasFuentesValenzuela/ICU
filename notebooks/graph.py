@@ -55,7 +55,7 @@ def expand_graph(path):
     
     #what really matters is the value of phi
     L_rebalancing_edge=10
-    t_rebalancing_edge=10
+    t_rebalancing_edge=1
     k_rebalancing_edge=1 #does not matter as it should be adapted accordingly
     
     for o in o_list: #loop over the different origins in OD pairs

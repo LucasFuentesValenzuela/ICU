@@ -297,6 +297,8 @@ def get_cost_all_path(G, OD):
         cost_list=[]
         cost_ID_list=[]
         for path in nx.all_simple_paths(G,source=o,target=d):
+            # print("o, d", o, d)
+            # print("path: ", path)
             cost=np.zeros(x.shape)
             cost_ID=np.zeros(x.shape) #inverse demand
             for i in range(len(path)-1):
@@ -327,7 +329,7 @@ def plot_cost_all_path(G, OD, o, d):
         return
     
     nplots=len(cost[o,d])
-    _, axes = plt.subplots(nplots, 1, figsize=(13,5*nplots) )
+    _, axes = plt.subplots(nplots, 1, figsize=(10,4*nplots) )
     for i in range(nplots):
         crt_=cost[o,d][i]
         x=np.linspace(0,OD[o,d],100)

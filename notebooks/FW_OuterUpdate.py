@@ -8,7 +8,7 @@ from FW_icu import update_OD,update_capacities, AoN, estimate_ri_k
 from helpers_icu import Value_Total_Cost,print_final_flows, print_final_cost
 from routines_icu import update_costs
 
-def solve(G_0,OD,edge_list,tol=10**-6, FW_tol=10**-6):
+def solve(G_0,OD,edge_list,tol=10**-6, FW_tol=10**-6, max_iter=10**3):
     
     #Variables to store at each iterations
 
@@ -47,7 +47,7 @@ def solve(G_0,OD,edge_list,tol=10**-6, FW_tol=10**-6):
 
         G_list,_,_,_=FW_graph_extension(
             G_k,OD,edge_list, ri_k,FW_tol, 
-            step='fixed', evolving_bounds=False, max_iter=2000)
+            step='fixed', evolving_bounds=False, max_iter=max_iter)
 
         #solution at previous step
         #important because it basically contains the passenger flows
@@ -131,10 +131,10 @@ def FW_graph_extension(
 
     G_k=init_flows(G_k,OD)
     G_k=update_costs(G_k)
-    print("Cost at the beginning of the iteration:")
-    print_final_cost([G_k])
-    print("Flows at the beginning of the iteration:")
-    print_final_flows([G_k])
+    # print("Cost at the beginning of the iteration:")
+    # print_final_cost([G_k])
+    # print("Flows at the beginning of the iteration:")
+    # print_final_flows([G_k])
     
     ###################################
     # Solve for the given ri_k
@@ -162,6 +162,8 @@ def FW_graph_extension(
         duality_gap=compute_duality_gap(G_k, y_k)
         # print(duality_gap)
         if duality_gap<FW_tol or i>=max_iter:
+            #here we put a limit on the number of computations as the problem is likely to change
+            #however we do not do it in the main loop!
             compute=False
 
         #update the flows
