@@ -6,7 +6,7 @@ import numpy as np
 
 
 #sign not necessary (think about what is actually D-1 and about the fact that it has a negative sign in front)
-def update_costs(G,INVERSE_DEMAND_SHIFT):
+def update_costs(G):
     UPPER_LIMIT=10**22
 
     for e in G.edges:
@@ -26,14 +26,15 @@ def update_costs(G,INVERSE_DEMAND_SHIFT):
             continue
 
         if G[e[0]][e[1]]['sign']==(-1): #we have a negative edge
-            G[e[0]][e[1]]['cost']-=INVERSE_DEMAND_SHIFT
+            G[e[0]][e[1]]['cost']-=G[e[0]][e[1]]['shift']
             
         if 'pot' in G.nodes[e[1]]:
             G[e[0]][e[1]]['cost']+=G.nodes[e[1]]['pot']
     return G
 
 
-
+#Previous version 
+#to deprecate
 # def initEdgeAttr(G,edge_list,k_list,phi_list,is_negative):
 
 #     for i in range(len(edge_list)):

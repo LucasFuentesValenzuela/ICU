@@ -50,6 +50,8 @@ def AoN(G,OD,dummy_nodes):
                     y_k[(path[i],path[i+1]),flag]+=U
     return y_k
 
+
+#TODO: do we really need dummy nodes and edge list
 def modified_FW(G_0,OD,edge_list,dummy_nodes,maxIter=50, step='line_search',
        rebalancer_smoothing=False, ri_smoothing=True,evolving_bounds=True):
 
@@ -81,11 +83,10 @@ def modified_FW(G_0,OD,edge_list,dummy_nodes,maxIter=50, step='line_search',
         ri_k,G_crt=estimate_ri_k(G_crt,dummy_nodes, ri_smoothing, a_k)
         OD=update_OD(OD,ri_k,a_k,dummy_nodes, G_crt, evolving_bounds)
         G_crt=update_capacities(G_crt,ri_k, dummy_nodes)
-        # G_crt=update_costs(G_crt,80)
         #for some reason including the above update_costs messes up things
         #TODO: understand really why? 
         G_crt=assign_rebalancers(G_crt,OD,rebalancer_smoothing,a_k)
-        G_crt=update_costs(G_crt,80)
+        G_crt=update_costs(G_crt)
         
         #perform AON assignment
         y_k=AoN(G_crt,OD,dummy_nodes)

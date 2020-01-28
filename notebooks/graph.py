@@ -5,15 +5,18 @@ import numpy as np
 import pandas as pd
 from helpers_icu import phi
 import networkx as nx
+from routines_icu import update_costs
+
 
 def construct_graph(path):
 
     edges, OD = expand_graph(path)
     G=init_graph(edges)
     G=initEdgeAttr(G,edges)
-    G=initNodeAttr(G,nodes_pots)
-    G=update_costs(G,INVERSE_DEMAND_SHIFT) 
+    G=initNodeAttr(G,edges)
+    G=update_costs(G) 
 
+    return G, OD
 
 def init_graph(edges):
 
@@ -43,17 +46,8 @@ def expand_graph(path):
     
     edges=edges.copy()
     
-    #not sure if necessary
-    #convert OD into a dictionnary
-    OD=dict()
-    for i in range(OD_xl.shape[0]):
-        o=OD_xl.loc[i,'origin']
-        d=OD_xl.loc[i,'destination']
-        demand=OD_xl.loc[i,'demand']
-        OD[o,d]=demand
-        
     o_list=np.unique(OD_xl['origin'])
-    d_list=np.unique(OD_xl['destination'])
+    # d_list=np.unique(OD_xl['destination'])
     
     #######################################
     # 1 . Add rebalancing edge
@@ -65,18 +59,19 @@ def expand_graph(path):
     
     for o in o_list: #loop over the different origins in OD pairs
         data=np.array([[str(o),'R', L_rebalancing_edge,
-                       k_rebalancing_edge,t_rebalancing_edge,0]])
+                       k_rebalancing_edge,t_rebalancing_edge,0, 0]])
         l=pd.DataFrame(columns=edges.columns,data=data)
         edges=edges.append(l,ignore_index=True)
      
     
-    #######################################
-    # 2. Add dummy destination nodes
+    #########################################################
+    # 2. Add dummy destination nodes and inverse demand edges
+
     OD=dict()
     for i in range(OD_xl.shape[0]):
         #we add one dummy destination node per origin
-        o=OD_xl.loc[i,'origin']
-        d=OD_xl.loc[i,'destination']
+        o=str(OD_xl.loc[i,'origin'])
+        d=str(OD_xl.loc[i,'destination'])
         demand=OD_xl.loc[i,'demand']
         attr_=OD_xl.iloc[i,3:].values
         d_dummy=str(o)+'_p'
@@ -99,10 +94,12 @@ def expand_graph(path):
     t_ZC=1
     k_ZC=1
     for o in o_list:
-        data=np.array([[str(o), str(o)+'_p', L_ZC, k_ZC, t_ZC, 0]])
+        data=np.array([[str(o), str(o)+'_p', L_ZC, k_ZC, t_ZC, 0, 0]])
         l=pd.DataFrame(columns=edges.columns,data=data)
         edges=edges.append(l,ignore_index=True)
 
+    #make sure we have floats and no strings for the numbers
+    edges.iloc[:,2:]=edges.iloc[:,2:].astype(float)
     return edges, OD#, dummy_nodes # I am not sure we actually need the dummy_node construct
 
 
@@ -115,21 +112,22 @@ def initEdgeAttr(G,edges):
         G[e[0]][e[1]]['k']=edges.loc[i,'capacity']
         L=edges.loc[i,'length']
         t=edges.loc[i,'time']
+        shift=edges.loc[i,'shift']
         G[e[0]][e[1]]['phi']=phi(L,t)
         is_negative=edges.loc[i,'isnegative']
         G[e[0]][e[1]]['sign']=(-1)**is_negative
         G[e[0]][e[1]]['f_m']=0
         G[e[0]][e[1]]['f_r']=0 
+        G[e[0]][e[1]]['shift']=shift
     return G
 
-def initNodeAttr(G,nodes_pots):
+def initNodeAttr(G,edges):
 
-    #Node potential
-    for (n,p) in nodes_pots:
-        G.nodes[n]['pot']=p
-    
-    #ri_k
+    max_shift=np.max(edges['shift'])
+
     for n in G.nodes():
+        if n.endswith('_p'):
+            G.nodes[n]['pot']=max_shift*1.5
         G.nodes[n]['ri']=0
 
     return G
@@ -141,4 +139,17 @@ def vect_attribute(G,att):
         # x.append(G[e[0]][e[1]][att])
         x[e]=G[e[0]][e[1]][att]
     return x
-    
+
+def get_edge_list(G):
+    l=[]
+    for e in G.edges():
+        l.append(e)
+
+    return l
+
+def get_dummy_nodes(G):
+    dummy_nodes=dict()
+    for n in G.nodes():
+        if n.endswith('_p'):
+            dummy_nodes[n]=n.split('_')[0]
+    return dummy_nodes

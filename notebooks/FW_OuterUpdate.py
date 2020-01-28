@@ -120,7 +120,7 @@ def FW_graph_extension(
     print("CURRENT OD:", OD)
     #you update capacities because you have new values of ri_k
     G_k=update_capacities(G_k,ri_k, dummy_nodes)
-    G_k=update_costs(G_k,80) #we need to ensure that the information is passed on to the costs
+    G_k=update_costs(G_k) #we need to ensure that the information is passed on to the costs
 
     ###################################
     # Reinitialize
@@ -129,7 +129,7 @@ def FW_graph_extension(
     #because the problem is never the same 
 
     G_k=init_flows(G_k,OD)
-    G_k=update_costs(G_k,80)
+    G_k=update_costs(G_k)
     print("Cost at the beginning of the iteration:")
     print_final_cost([G_k])
     print("Flows at the beginning of the iteration:")
@@ -164,7 +164,7 @@ def FW_graph_extension(
 
         #update the flows
         G_k=update_flows(G_k,y_k,a_k,edge_list)
-        G_k=update_costs(G_k,80)
+        G_k=update_costs(G_k)
 
         # print("current flows: ")
         # print_final_flows([G_k])
