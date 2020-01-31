@@ -94,11 +94,12 @@ def update_OD(OD, ri_k, a_k, G, evolving_bounds=True):
 def update_capacities(G, ri_k):
     eps = 10**-6
     for n in G.nodes():
-        if not n.endswith('_p') and n != 'R':
-            if ri_k[n] > eps:
-                G[n]['R']['k'] = ri_k[n]
-            else:
-                G[n]['R']['k'] = eps
+        if not n.endswith('_p') and n != 'R': #rebalancing for those nodes means nothing
+            if (n,'R') in G.edges:
+                if ri_k[n] > eps:
+                    G[n]['R']['k'] = ri_k[n]
+                else:
+                    G[n]['R']['k'] = eps
     return G
 
 #we currently assign a rebalancing flow to y_k, but this is useless currently
