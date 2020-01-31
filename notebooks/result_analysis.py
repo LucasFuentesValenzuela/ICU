@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from helpers_icu import BPR
+import networkx as nx
 
 def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
     G_ = G_list[0]
@@ -252,6 +254,13 @@ def analyze_cost_oscillations_3(G_k, y_k, o, d, lims=None, scale='linear'):
 
     print("Black lines indicate that the assignment variable y_m is activated for the dummy edge")
 
+###############################
+#
+# Cost of all the paths between o and d
+# and how they vary with the flow
+#   good to get a rough idea of what the solution should be
+#
+
 
 def get_cost_all_path(G, OD):
 
@@ -324,6 +333,13 @@ def plot_inv_demand(N, phi, k, shift):
     plt.grid(True)
     plt.ylim([0, INV[0]*1.2])
     return
+
+
+
+###############################
+#
+# Flow conservation at nodes
+#
 
 def check_flow_cons(G, OD): 
     """ 

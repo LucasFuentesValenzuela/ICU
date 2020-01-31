@@ -5,27 +5,21 @@ import numpy as np
 import cvxpy as cp
 import networkx as nx
 from helpers_icu import Value_Total_Cost 
-from routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k
+from routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k, update_flows, init_flows, fixed_step
+from result_analysis import check_flow_cons_at_OD_nodes
 
-
-
+#TODO: think about the evolving bounds and the rebalancing smoothing
 def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
 
     #Variables to store at each iterations
-
     i = 1
     G_ = []
     ri_ = []
-
+    balance=[]
     #initialize certain values
     G_k = G_0
-
-    #initialize flows and compute ri?
-    #They are already initialized in the case of the icu
-    # G_k=init_flows(G_k,OD)
-
     ri_k, G_k = estimate_ri_k(G_k, ri_smoothing=False, a_k=0)
-
+    n_iter_tot=0
     #Save the different variables
     G_.append(G_k)
     ri_.append(ri_k)
@@ -37,42 +31,42 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
         print("CURRENT RI_k")
         print(ri_k)
 
-        #solve system entirely for the given parameters
         #TODO: maybe you do not have to go all the way in the computation
         #maybe you can introduce a decreasing tolerance over the different problems
         #like start with tol=1 and then divide it by two at every step
-
-        G_list, _, _, _ = FW_graph_extension(
+        #currently this is dealt with by a max iter number
+        G_list, _, _, _ , n_iter= FW_graph_extension(
             G_k, OD, edge_list, ri_k, FW_tol,
             step='fixed', evolving_bounds=False, max_iter=max_iter)
 
-        #solution at previous step
-        #important because it basically contains the passenger flows
-        #which directly informs the value of the rebalancing
         G_end = G_list[-1]
 
         #estimate #ri_k, update OD, assign, update costs
         ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
 
         if diff_ri(ri_k, ri_new) < tol:
-            # print("flows at the end:")
-            # print_final_flows([G_end])
             compute = False
 
-        #The big question is what value of the flows and the graph you actually restart everything with
-        #all the time?
         #update the values for the new iteration
         ri_k = ri_new
         # TODO: does it work if you actually keep the last version of G (as you solved it? )
         G_k = G_end
+        balance.append(np.linalg.norm(check_flow_cons_at_OD_nodes(G_k, OD)))
 
         #Save the different variables
         G_.append(G_k)
         ri_.append(ri_k)
 
         i += 1
-
-    return G_, ri_
+        n_iter_tot+=n_iter
+    """
+    Returns: 
+    G_ : list of graphs
+    ri_: list of dict()
+    i: number of outer loop iterations, i.e. of ri update
+    n_iter_tot: total number of iterations in the FW
+    """
+    return G_, ri_, i-1, n_iter_tot, np.array(balance)
 
 
 def diff_ri(ri_k, ri_new):
@@ -85,11 +79,8 @@ def diff_ri(ri_k, ri_new):
     return np.linalg.norm(diff)
 
 
-def FW_graph_extension(
-    G_0, OD, edge_list, ri_k, FW_tol=10**-6,
-    step='line_search', evolving_bounds=True, max_iter=10**3
-):
-    #python implementation of Kiril's routine
+def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
+    step='line_search', evolving_bounds=True, max_iter=10**3):
     #ri_t are the estimate of ri at timestep k
 
     ###########################################
@@ -121,53 +112,45 @@ def FW_graph_extension(
     ###################################
     # Reinitialize
     ###################################
-    #I think we need a new initialization at every step
-    #because the problem is never the same
 
     G_k = init_flows(G_k, OD)
     G_k = update_costs(G_k)
-    # print("Cost at the beginning of the iteration:")
-    # print_final_cost([G_k])
-    # print("Flows at the beginning of the iteration:")
-    # print_final_flows([G_k])
 
     ###################################
     # Solve for the given ri_k
     ###################################
 
-    while compute:  # introduce stopping criterion for FW algorithm. See Jaggi.
-        #here we perform the assignment with OD remaining fixed
-        #the structure of the graph is the same
-        #we just want to reach the "perfect" assignment
+    while compute:  
 
         #perform AON assignment
-        # check if there is a special feature of AON as previously setup that prevents its good implementation
         y_k = AoN(G_k, OD)
+        #TODO: enable line search
         if step == 'line_search':
             # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
             print("not implemented")
             return
         elif step == 'fixed':
-            a_k, obj_k = fixed_step(G_k, y_k, edge_list, i)
+            a_k = fixed_step(i)
+            obj_k=Value_Total_Cost(G_k)
         else:
             print("wrong optim step chosen")
             return
 
         #compute the duality gap
-        #based on the current version of y_k and x_k
         duality_gap = compute_duality_gap(G_k, y_k)
-        # print(duality_gap)
         if duality_gap < FW_tol or i >= max_iter:
             #here we put a limit on the number of computations as the problem is likely to change
             #however we do not do it in the main loop!
             compute = False
+            if duality_gap < FW_tol:
+                print("     FW solved to tol")
+            else:
+                print("     Max inner iterations reached")
+            print("     Number of inner loop iterations: ", i)
 
         #update the flows
         G_k = update_flows(G_k, y_k, a_k, edge_list)
         G_k = update_costs(G_k)
-
-        # print("current flows: ")
-        # print_final_flows([G_k])
 
         #save for analyses
         opt_res['obj'].append(obj_k)
@@ -177,9 +160,7 @@ def FW_graph_extension(
         y_list.append(y_k)
         OD_list.append(OD.copy())
         i += 1
-        # print("ITERATION# :", i)
-        # print(duality_gap)
-    return G_list, y_list, opt_res, OD_list
+    return G_list, y_list, opt_res, OD_list, i-1
 
 
 def compute_duality_gap(G_k, y_k):
@@ -209,52 +190,61 @@ def compute_duality_gap(G_k, y_k):
 #TODO: consolidate them all in a single file, with flexible versions
 
 
-def fixed_step(G, y_k, edge_list, k):
-    #here we actually update both the rebalancing and the passenger flows
-    #we need to take both into account because we are solving for a fixed value of the ri's
+#TODO: Deprecate
 
-    # the update step is very important, if it is too large, then we lose the progress we made
-    gamma = 2/(k+2)
-    #currently I put k**1.5 because I want to accelerate the computation slightly
+#main problem in the below: the flows are updated twice in the "same" direction
+#as the updates occur in place I think
+#plus, there is absolutely no need to compute the flows here... 
 
-    for i in range(len(edge_list)):
-        e = edge_list[i]
-        for flag in ['f_m', 'f_r']:
-            x_k_e = G[e[0]][e[1]][flag]  # retrieve the flow
-            # retrieve the flow from the manual assignment
-            y_k_e = y_k[(e[0], e[1]), flag]
-            G[e[0]][e[1]][flag] = (1-gamma)*x_k_e+gamma*y_k_e
+# def fixed_step(G, y_k, edge_list, k):
+#     """
+#     """
 
-    return gamma, Value_Total_Cost(G)
+#     #here we actually update both the rebalancing and the passenger flows
+#     #we need to take both into account because we are solving for a fixed value of the ri's
 
+#     # the update step is very important, if it is too large, then we lose the progress we made
+#     gamma = 2/(k+2)
+#     #currently I put k**1.5 because I want to accelerate the computation slightly
 
-def update_flows(G, y_k, a_k, edge_list):
+#     for i in range(len(edge_list)):
+#         e = edge_list[i]
+#         for flag in ['f_m', 'f_r']:
+#             x_k_e = G[e[0]][e[1]][flag]  # retrieve the flow
+#             # retrieve the flow from the manual assignment
+#             y_k_e = y_k[(e[0], e[1]), flag]
+#             G[e[0]][e[1]][flag] = (1-gamma)*x_k_e+gamma*y_k_e
 
-    for i in range(len(edge_list)):
-        e = edge_list[i]
-        for flag in ['f_m', 'f_r']:
-            x_k_e = G[e[0]][e[1]][flag]  # retrieve the flow
-            # retrieve the flow from the manual assignment
-            y_k_e = y_k[(e[0], e[1]), flag]
-            G[e[0]][e[1]][flag] = (1-a_k)*x_k_e + a_k * y_k_e
-    return G
+#     return gamma, Value_Total_Cost(G)
 
 
-def init_flows(G, OD):
-    #TODO: deal with conflicting version!!
-    #Initiliaze the flows, with a feasible solution
-    #still unclear whether we need to initialize the rebalancers appropriately too
+# def update_flows(G, y_k, a_k, edge_list):
 
-    #reinitialize the flows to zero
-    for e in G.edges():
-        for flag in ['f_r', 'f_m']:
-            G[e[0]][e[1]][flag] = 0
+#     for i in range(len(edge_list)):
+#         e = edge_list[i]
+#         for flag in ['f_m', 'f_r']:
+#             x_k_e = G[e[0]][e[1]][flag]  # retrieve the flow
+#             # retrieve the flow from the manual assignment
+#             y_k_e = y_k[(e[0], e[1]), flag]
+#             G[e[0]][e[1]][flag] = (1-a_k)*x_k_e + a_k * y_k_e
+#     return G
 
-    for (o, d) in OD.keys():
-        path = nx.shortest_path(G, source=o, target=d, weight='cost')
-        for i in range(len(path)-1):
-            if d == 'R':
-                G[path[i]][path[i+1]]['f_r'] += OD[o, d]
-            else:
-                G[path[i]][path[i+1]]['f_m'] += OD[o, d]
-    return G
+
+# def init_flows(G, OD):
+#     #TODO: deal with conflicting version!!
+#     #Initiliaze the flows, with a feasible solution
+#     #still unclear whether we need to initialize the rebalancers appropriately too
+
+#     #reinitialize the flows to zero
+#     for e in G.edges():
+#         for flag in ['f_r', 'f_m']:
+#             G[e[0]][e[1]][flag] = 0
+
+#     for (o, d) in OD.keys():
+#         path = nx.shortest_path(G, source=o, target=d, weight='cost')
+#         for i in range(len(path)-1):
+#             if d == 'R':
+#                 G[path[i]][path[i+1]]['f_r'] += OD[o, d]
+#             else:
+#                 G[path[i]][path[i+1]]['f_m'] += OD[o, d]
+#     return G

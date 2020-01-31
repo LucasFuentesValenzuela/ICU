@@ -1,7 +1,7 @@
 import numpy as np
-import cvxpy as cp
 import matplotlib.pyplot as plt
 import networkx as nx
+import cvxpy as cp
 
 
 def BPR_int(phi, x, kappa, alpha=0.15, beta=4):
