@@ -10,19 +10,78 @@ from FW_OuterUpdate import init_flows
 
 
 #TODO: The graph has to be fully connected (otherwise, some OD pairs will never find a home)
-def generate_random_graph(n_nodes, n_edges, n_OD_pairs, path):
+# def generate_random_graph(n_nodes, n_edges, n_OD_pairs, path):
+
+#     if not os.path.exists(path):
+#         os.makedirs(path)
+
+#     edge_list=[]
+#     for n in range(n_edges):
+#         draw=True
+#         while draw:
+#             edge=np.random.choice(n_nodes, size=2, replace=False).tolist()
+#             if edge not in edge_list:
+#                 draw=False
+#         edge_list.append(edge)
+
+#     #generate edge file
+#     edges=pd.DataFrame(columns=['head','tail','length','capacity','time','isnegative','shift'])
+#     for e in edge_list:
+#         L=10
+#         k=10
+#         t=10
+#         data = np.array([[str(e[0]), str(e[1]), L, k, t, 0, 0]])
+#         l = pd.DataFrame(columns=edges.columns, data=data)
+#         edges = edges.append(l, ignore_index=True) 
+
+#     o_list=np.unique(edges['head'].values.flatten())
+#     d_list=np.unique(edges['tail'].values.flatten())
+
+#     OD_list=[]
+#     for n in range(n_OD_pairs):
+#         draw=True
+#         while draw:
+#             o=np.random.choice(o_list)
+#             d=np.random.choice(d_list)
+#             pair=[o,d]
+#             if pair not in OD_list:
+#                 draw=False
+#         OD_list.append(pair)
+
+#     #generate OD file
+#     OD=pd.DataFrame(columns=['origin','destination','demand','length','capacity','time','isnegative','shift'])
+#     from helpers_icu import phi
+#     for od in OD_list:
+#         demand=10
+#         L=10
+#         k=3
+#         t=10
+        
+#         #those limits are important and depend on the connectivity of the graph
+#         #we need a better way of computing them
+#         shift_low=phi(L,t)*n_edges/10
+#         shift_high=n_edges*shift_low
+#         shift=np.random.randint(high=shift_high,low=shift_low)
+#         data = np.array([[str(od[0]), str(od[1]), demand, L, k, t, 1, shift]])
+#         l = pd.DataFrame(columns=OD.columns, data=data)
+#         OD = OD.append(l, ignore_index=True) 
+
+#     edges.to_excel(os.path.join(path,'edges.xlsx'), index=False)
+#     OD.to_excel(os.path.join(path,'OD.xlsx'), index=False)
+#     return edges, OD
+
+#The below version will build simple graphs but large
+def generate_random_graph(n_nodes, n_OD_pairs, path):
 
     if not os.path.exists(path):
         os.makedirs(path)
-
+    
     edge_list=[]
-    for n in range(n_edges):
-        draw=True
-        while draw:
-            edge=np.random.choice(n_nodes, size=2, replace=False).tolist()
-            if edge not in edge_list:
-                draw=False
-        edge_list.append(edge)
+    for n in range(1, n_nodes):
+        o=np.random.randint(low=0,high=n)
+        d=n
+        edge_list.append([o,d])
+        edge_list.append([d,o])
 
     #generate edge file
     edges=pd.DataFrame(columns=['head','tail','length','capacity','time','isnegative','shift'])
@@ -59,8 +118,8 @@ def generate_random_graph(n_nodes, n_edges, n_OD_pairs, path):
         
         #those limits are important and depend on the connectivity of the graph
         #we need a better way of computing them
-        shift_low=phi(L,t)*n_edges/10
-        shift_high=n_edges*shift_low
+        shift_low=phi(L,t)*n_nodes/10
+        shift_high=10*shift_low
         shift=np.random.randint(high=shift_high,low=shift_low)
         data = np.array([[str(od[0]), str(od[1]), demand, L, k, t, 1, shift]])
         l = pd.DataFrame(columns=OD.columns, data=data)

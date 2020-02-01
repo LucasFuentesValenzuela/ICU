@@ -26,9 +26,9 @@ def main():
     G_0, OD = construct_graph(path)
     edge_list = get_edge_list(G_0)
     G_FW, ri_FW, n_outer, n_inner, balance = solve(
-        G_0.copy(), OD.copy(), edge_list, tol=10**-4, FW_tol=10**-4, max_iter=3000)
+        G_0.copy(), OD.copy(), edge_list, tol=10**-2, FW_tol=10**-4, max_iter=10000)
 
-    to_save=[G_FW, ri_FW, n_outer, n_inner, balance] 
+    to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance] 
 
     print('Saving to external .pkl file')
     with open(os.path.join(path,'output.pkl'), 'wb') as f:

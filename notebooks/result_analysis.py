@@ -61,6 +61,26 @@ def plot_node_attrs(G_list, attrs, lims=None):
                 axes[i, j].legend()
         i += 1
 
+def plot_ri(ri_FW, lims=None):
+    _, axes = plt.subplots(len(ri_FW[0].keys()), 1, figsize=(13, 5*len(ri_FW[0].keys())))
+    ri_iter=dict()
+    i=0
+    for n in ri_FW[0].keys():
+        ri_iter[n]=[]
+
+    for ri in ri_FW:
+        for n in ri.keys():
+            ri_iter[n].append(ri[n])
+    for n in ri_iter.keys():
+        axes[i].plot(ri_iter[n])
+        axes[i].grid(True)
+        axes[i].set_xlabel('Iteration #')
+        axes[i].set_title(' node : ' + str(n))
+        axes[i].set_xlim(lims)
+        axes[i].set_ylim([np.min(ri_iter[n][-5:])*.95 , np.max(ri_iter[n][-5:])*1.05])
+        i+=1
+
+
 
 def plot_OD(OD_list, o, d):
     vals = []
@@ -266,10 +286,12 @@ def get_cost_all_path(G, OD):
 
     dict_cost = dict()
     dict_cost_ID = dict()
+    paths=dict()
     for (o, d) in OD.keys():
         x = np.linspace(0, OD[o, d], 100)
         cost_list = []
         cost_ID_list = []
+        path_list=[]
         for path in nx.all_simple_paths(G, source=o, target=d):
             # print("o, d", o, d)
             # print("path: ", path)
@@ -290,37 +312,46 @@ def get_cost_all_path(G, OD):
                     cost += cost_crt
             cost_list.append(cost)
             cost_ID_list.append(cost_ID)
+            path_list.append(path)
         dict_cost[o, d] = cost_list
         dict_cost_ID[o, d] = cost_ID_list
+        paths[o,d] = path_list
 
-    return dict_cost, dict_cost_ID
+    return dict_cost, dict_cost_ID, paths
 
 
 def plot_cost_all_path(G, OD, o, d):
-    cost, cost_ID = get_cost_all_path(G, OD)
+    cost, cost_ID, paths = get_cost_all_path(G, OD)
 
     if (o, d) not in cost.keys():
         print("Wrong set of o,d chosen")
         return
 
     nplots = len(cost[o, d])
-    _, axes = plt.subplots(nplots, 1, figsize=(10, 4*nplots))
+    
+    ncols=2
+    nrows=int(np.ceil(nplots/2))
+    _, axes = plt.subplots(nrows,ncols, figsize=(13, 4*nrows))
     max_c = 0
     for c in cost[o, d]:
         max_c = np.max([max_c, c[-1]])
-    for i in range(nplots):
-        crt_ = cost[o, d][i]
-        crt_ID = cost_ID[o, d][i]
-        diff = np.abs(np.array(crt_)-np.array(crt_ID))
-        index_min = np.argmin(diff)
-        x = np.linspace(0, OD[o, d], 100)
-        axes[i].plot(x, crt_, label="cost")
-        axes[i].plot(x, cost_ID[o, d][i], label="ID")
-        axes[i].grid(True)
-        axes[i].legend()
-        axes[i].set_ylim([0, 1.1*max_c])
-        axes[i].set_title("origin: " + o + ", destination: " + d + " | intersect at x = " +
-                          str(np.around(x[index_min], 2)) + " | cost: " + str(crt_[index_min]))
+    for i in range(nrows):
+        for j in range(2):
+            n=ncols*i+j
+            if n >= len(cost[o,d]):
+                break
+            crt_ = cost[o, d][n]
+            crt_ID = cost_ID[o, d][n]
+            diff = np.abs(np.array(crt_)-np.array(crt_ID))
+            index_min = np.argmin(diff)
+            x = np.linspace(0, OD[o, d], 100)
+            axes[i,j].plot(x, crt_, label="cost")
+            axes[i,j].plot(x, cost_ID[o, d][n], label="ID")
+            axes[i,j].grid(True)
+            axes[i,j].legend()
+            axes[i,j].set_ylim([0, 1.1*max_c])
+            axes[i,j].set_title(str(paths[o,d][n])+ " | intersect at x = " +
+                            str(np.around(x[index_min], 2)) + " | cost: " + str(np.around(crt_[index_min],2)))
 
     return
 

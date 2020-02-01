@@ -25,40 +25,45 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
     ri_.append(ri_k)
 
     compute = True
-    while compute:
-        print("##########################################")
-        print("ITERATION #: ", i)
-        print("CURRENT RI_k")
-        print(ri_k)
+    try:
+        while compute:
+            print("##########################################")
+            print("ITERATION #: ", i)
+            # print("CURRENT RI_k")
+            # print(ri_k)
 
-        #TODO: maybe you do not have to go all the way in the computation
-        #maybe you can introduce a decreasing tolerance over the different problems
-        #like start with tol=1 and then divide it by two at every step
-        #currently this is dealt with by a max iter number
-        G_list, _, _, _ , n_iter= FW_graph_extension(
-            G_k, OD, edge_list, ri_k, FW_tol,
-            step='fixed', evolving_bounds=False, max_iter=max_iter)
+            #TODO: maybe you do not have to go all the way in the computation
+            #maybe you can introduce a decreasing tolerance over the different problems
+            #like start with tol=1 and then divide it by two at every step
+            #currently this is dealt with by a max iter number
+            G_list, _, _, _ , n_iter= FW_graph_extension(
+                G_k, OD, edge_list, ri_k, FW_tol,
+                step='fixed', evolving_bounds=False, max_iter=max_iter)
 
-        G_end = G_list[-1]
+            G_end = G_list[-1]
 
-        #estimate #ri_k, update OD, assign, update costs
-        ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
+            #estimate #ri_k, update OD, assign, update costs
+            ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
 
-        if diff_ri(ri_k, ri_new) < tol:
-            compute = False
+            if diff_ri(ri_k, ri_new) < tol:
+                compute = False
 
-        #update the values for the new iteration
-        ri_k = ri_new
-        # TODO: does it work if you actually keep the last version of G (as you solved it? )
-        G_k = G_end
-        balance.append(np.linalg.norm(check_flow_cons_at_OD_nodes(G_k, OD)))
+            #update the values for the new iteration
+            ri_k = ri_new
+            # TODO: does it work if you actually keep the last version of G (as you solved it? )
+            G_k = G_end
+            balance.append(check_flow_cons_at_OD_nodes(G_k, OD))
 
-        #Save the different variables
-        G_.append(G_k)
-        ri_.append(ri_k)
+            #Save the different variables
+            G_.append(G_k)
+            ri_.append(ri_k)
 
-        i += 1
-        n_iter_tot+=n_iter
+            i += 1
+            n_iter_tot+=n_iter
+    except KeyboardInterrupt:
+        print("Program interrupted by user -- Current data saved")
+        return G_, ri_, i-1, n_iter_tot, np.array(balance)
+
     """
     Returns: 
     G_ : list of graphs
@@ -103,7 +108,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     # update the OD pairs and capacities
     #################################
     OD = update_OD(OD, ri_k, a_k, G_k, evolving_bounds)
-    print("CURRENT OD:", OD)
+    # print("CURRENT OD:", OD)
     #you update capacities because you have new values of ri_k
     G_k = update_capacities(G_k, ri_k)
     # we need to ensure that the information is passed on to the costs
@@ -141,6 +146,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         if duality_gap < FW_tol or i >= max_iter:
             #here we put a limit on the number of computations as the problem is likely to change
             #however we do not do it in the main loop!
+            #TODO: I believe this stopping criterion scheme is really not reliable, as it does not
+            #guarantee anything...
             compute = False
             if duality_gap < FW_tol:
                 print("     FW solved to tol")

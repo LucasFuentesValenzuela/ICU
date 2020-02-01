@@ -13,8 +13,6 @@ def main():
                         type=str)
     parser.add_argument("n_nodes", help="number of nodes in new graph",
                         type=int)
-    parser.add_argument("n_edges", help="number of edges in new graph",
-                        type=int)
     parser.add_argument("n_OD", help="number of OD pairs in new graph",
                         type=int)
 
@@ -24,7 +22,7 @@ def main():
     path = os.path.join('Data/', args.path)
 
     _, _ = generate_random_graph(
-        args.n_nodes, args.n_edges, args.n_OD, path)
+        args.n_nodes, args.n_OD, path)
 
     return
 
