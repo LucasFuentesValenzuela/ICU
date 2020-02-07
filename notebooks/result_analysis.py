@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from helpers_icu import BPR
 import networkx as nx
+import os
 
 def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
     G_ = G_list[0]
@@ -61,24 +62,90 @@ def plot_node_attrs(G_list, attrs, lims=None):
                 axes[i, j].legend()
         i += 1
 
-def plot_ri(ri_FW, lims=None):
-    _, axes = plt.subplots(len(ri_FW[0].keys()), 1, figsize=(13, 5*len(ri_FW[0].keys())))
+def plot_ri(ri_FW, G_FW, lims=None, compare=True, path=None):
+    """
+
+    compare is a boolean variable that aims to indicate whether or not 
+    we want to plot the comparison alongside (i.e. the real value at the end of the iterations)
+    """
+    nplots=len(ri_FW[0].keys())
+    ncols=3
+    nrows=int(np.ceil(nplots/ncols))
+    _, axes = plt.subplots(nrows,ncols, figsize=(13, 5*nrows))
     ri_iter=dict()
     i=0
+    j=0
+
+    #ri_iter is the ri that has been prescribed as an argument to the optimization 
     for n in ri_FW[0].keys():
         ri_iter[n]=[]
 
     for ri in ri_FW:
         for n in ri.keys():
             ri_iter[n].append(ri[n])
+    
+    #compute the net rebalancing flow at each node
+    #those are the real net flows that occur on the graph
+    if compare:
+        real_ri=dict()
+        G_ri=dict()
+        for n in G_FW[0].nodes():
+            real_ri[n]=np.zeros((len(ri_FW),))
+            G_ri[n]=np.zeros((len(ri_FW),))
+        for i in range(len(G_FW)):
+            G=G_FW[i]
+            for e in G.edges():
+                if e[1]!='R' and not e[1].endswith('_p'):
+                    real_ri[e[0]][i]-=G[e[0]][e[1]]['f_r']
+                    real_ri[e[1]][i]+=G[e[0]][e[1]]['f_r']
+            for n in G.nodes():
+                G_ri[n][i]=G.nodes[n]['ri']
+    i=0
     for n in ri_iter.keys():
-        axes[i].plot(ri_iter[n])
-        axes[i].grid(True)
-        axes[i].set_xlabel('Iteration #')
-        axes[i].set_title(' node : ' + str(n))
-        axes[i].set_xlim(lims)
-        axes[i].set_ylim([np.min(ri_iter[n][-5:])*.95 , np.max(ri_iter[n][-5:])*1.05])
-        i+=1
+        
+        if j==ncols:
+            j=0
+            i+=1
+        if i==nrows:
+            i=0
+        axes[i,j].plot(np.arange(1,len(ri_iter[n]),1),ri_iter[n][:-1], 'o-', label='Goal. ri_t')
+        if compare:
+            axes[i,j].plot(np.arange(1,len(ri_iter[n]),1),real_ri[n][1:], 'o--', label='net flows')
+            axes[i,j].plot(np.arange(1,len(ri_iter[n]),1),real_ri[n][1:]-ri_iter[n][:-1], 'o--', label='diff')
+
+            # axes[i,j].plot(G_ri[n],'o--', label='G_ri')
+        axes[i,j].grid(True)
+        axes[i,j].set_xlabel('Iteration #')
+        axes[i,j].set_title(' node : ' + str(n))
+        axes[i,j].set_xlim(lims)
+        axes[i,j].set_xticks(np.arange(1,len(ri_iter[n]),1))
+        axes[i,j].legend()
+        # axes[i,j].set_ylim([np.min(ri_iter[n][-5:])*.95 , np.max(ri_iter[n][-5:])*1.05])
+        j+=1
+    
+    if path!=None:
+        plt.savefig(os.path.join(path,'ri.png'))
+    
+    plt.close()
+    return
+
+def print_balance(balance, path=None):
+
+    balance_norm=np.linalg.norm(balance,axis=1)
+    plt.figure(figsize=(10,10))
+    plt.plot(balance_norm)
+    plt.grid(True)
+    plt.yscale('log')
+    plt.xlabel('Iteration #')
+    plt.xticks(np.arange(0,balance_norm.shape[0],1))
+
+    if path!= None:
+        plt.savefig(os.path.join(path,'balance.png'))
+
+    plt.close()
+    return
+
+
 
 
 

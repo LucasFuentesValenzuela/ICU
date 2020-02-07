@@ -177,7 +177,7 @@ def expand_graph(path):
     # 1 . Add rebalancing edge
     #TODO: has to be adapted as a function of the size of the graph (phi, therefore L/t)
     #what really matters is the value of phi
-    L_rebalancing_edge = 10
+    L_rebalancing_edge = 10000
     t_rebalancing_edge = 1
     k_rebalancing_edge = 1  # does not matter as it should be adapted accordingly
 

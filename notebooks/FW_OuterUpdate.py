@@ -45,15 +45,17 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
             #estimate #ri_k, update OD, assign, update costs
             ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
 
+            #TODO: this is not a good measure I think
             if diff_ri(ri_k, ri_new) < tol:
                 compute = False
+                print("The rebalancing vector has reached a stationary point.")
 
             #update the values for the new iteration
             ri_k = ri_new
             # TODO: does it work if you actually keep the last version of G (as you solved it? )
             G_k = G_end
             balance.append(check_flow_cons_at_OD_nodes(G_k, OD))
-
+            print("Balance norm at the end of iteration: ", np.linalg.norm(balance[-1]))
             #Save the different variables
             G_.append(G_k)
             ri_.append(ri_k)
@@ -186,6 +188,13 @@ def compute_duality_gap(G_k, y_k):
             d_gap += (x_k_ij-y_k_ij)*c_k_ij
 
     return d_gap
+
+
+
+
+
+
+
 
 ###########################################################################
 # Original version of functions in FW_icu
