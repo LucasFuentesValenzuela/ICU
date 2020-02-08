@@ -2,14 +2,14 @@
 #problem with rebalancers with graph extension, with Elastic Demand too
 
 import numpy as np
-import cvxpy as cp
+# import cvxpy as cp
 import networkx as nx
 from helpers_icu import Value_Total_Cost 
 from routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k, update_flows, init_flows, fixed_step
 from result_analysis import check_flow_cons_at_OD_nodes
 
 #TODO: think about the evolving bounds and the rebalancing smoothing
-#TODO: update stopping criterion
+#TODO: update stopping criterion (should be based on balance norm I think)
 #TODO: check duality gap
 def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, max_iter=10**3):
 
@@ -21,10 +21,13 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
     #initialize certain values
     G_k = G_0
     ri_k, G_k = estimate_ri_k(G_k, ri_smoothing=False, a_k=0)
+    balance_k=check_flow_cons_at_OD_nodes(G_k, OD)
+    balance_k=np.ones(balance_k.shape)
     n_iter_tot=[]
     #Save the different variables
     G_.append(G_k)
     ri_.append(ri_k)
+    balance.append(balance_k)
 
     compute = True
     try:
@@ -39,7 +42,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
             #like start with tol=1 and then divide it by two at every step
             #currently this is dealt with by a max iter number
             G_list, _, _, _ , n_iter= FW_graph_extension(
-                G_k, OD, edge_list, ri_k, FW_tol,
+                G_k, OD.copy(), edge_list, ri_k, FW_tol,
                 step='fixed', evolving_bounds=False, max_iter=max_iter)
 
             G_end = G_list[-1]
@@ -47,20 +50,40 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
             #estimate #ri_k, update OD, assign, update costs
             ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
 
-            #TODO: this is not a good measure I think
-            if diff_ri(ri_k, ri_new) < tol or i>=max_iter_outer:
+            balance_new=check_flow_cons_at_OD_nodes(G_k, OD)
+            balance_norm=np.linalg.norm(balance_new)
+            # print(balance_new.shape)
+            # print(balance_k.shape)
+            # print(balance_new)
+            # print(balance_k)
+            diff_balance=np.linalg.norm(balance_new-balance_k)
+
+            #New stopping criterion
+            #Now based on the balance
+            #We might still get stuck on an local optimum? 
+            #Hence, maybe include a condition on the actual norm of the balance vector
+            #for instance np.linalg.norm(balance_k)<eps
+            #TODO: make sure we do not have to check that across ALL nodes
+            # if diff_ri(ri_k, ri_new) < tol or i>=max_iter_outer:
+            #     compute=False
+
+            if diff_balance<tol:
+                compute=False
+                print("The balance vector has reached a stationary point")
+            elif i>=max_iter_outer:
                 compute = False
-                print("The rebalancing vector has reached a stationary point.")
+                print("Maximum number of outer iterations reached")
 
             #update the values for the new iteration
             ri_k = ri_new
             # TODO: does it work if you actually keep the last version of G (as you solved it? )
             G_k = G_end
-            balance.append(check_flow_cons_at_OD_nodes(G_k, OD))
-            print("Balance norm at the end of iteration: ", np.linalg.norm(balance[-1]))
+            balance_k=balance_new
+            print("Balance norm at the end of iteration: ", np.around(balance_norm,2))
             #Save the different variables
             G_.append(G_k)
             ri_.append(ri_k)
+            balance.append(balance_k)
 
             i += 1
             n_iter_tot.append(n_iter)

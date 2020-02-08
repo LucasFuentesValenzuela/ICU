@@ -51,10 +51,6 @@ def main():
     G_FW, ri_FW, n_outer, n_inner, balance = solve(
         G_0.copy(), OD.copy(), edge_list, tol=10**-2, FW_tol=10**-2, max_iter_outer= no, max_iter= ni)
     
-    # plot_ri(ri_FW, G_FW, lims=None, compare=True, path=path)
-    # print_balance(balance,path=path) 
-    #TODO; balance: is norm good or not?
-
     #Save the different documents
     to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance] 
 

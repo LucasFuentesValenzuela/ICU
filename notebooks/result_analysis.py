@@ -470,6 +470,7 @@ def check_flow_cons_at_OD_nodes(G,OD):
     Compute the flow balance only at nodes that below to OD. 
     """
     net_flow,l=check_flow_cons(G,OD)
+    # print(net_flow)
     balance=[]
     for n in l:
         balance.append(net_flow[n])
