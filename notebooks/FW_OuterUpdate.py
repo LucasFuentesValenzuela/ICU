@@ -9,7 +9,9 @@ from routines_icu import update_costs, update_OD, update_capacities, AoN, estima
 from result_analysis import check_flow_cons_at_OD_nodes
 
 #TODO: think about the evolving bounds and the rebalancing smoothing
-def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
+#TODO: update stopping criterion
+#TODO: check duality gap
+def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, max_iter=10**3):
 
     #Variables to store at each iterations
     i = 1
@@ -19,7 +21,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
     #initialize certain values
     G_k = G_0
     ri_k, G_k = estimate_ri_k(G_k, ri_smoothing=False, a_k=0)
-    n_iter_tot=0
+    n_iter_tot=[]
     #Save the different variables
     G_.append(G_k)
     ri_.append(ri_k)
@@ -46,7 +48,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
             ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
 
             #TODO: this is not a good measure I think
-            if diff_ri(ri_k, ri_new) < tol:
+            if diff_ri(ri_k, ri_new) < tol or i>=max_iter_outer:
                 compute = False
                 print("The rebalancing vector has reached a stationary point.")
 
@@ -61,7 +63,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter=10**3):
             ri_.append(ri_k)
 
             i += 1
-            n_iter_tot+=n_iter
+            n_iter_tot.append(n_iter)
     except KeyboardInterrupt:
         print("Program interrupted by user -- Current data saved")
         return G_, ri_, i-1, n_iter_tot, np.array(balance)
