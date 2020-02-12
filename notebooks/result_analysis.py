@@ -271,8 +271,8 @@ def analyze_cost_oscillations_2(G_k, o, d, lims=None, scale='linear'):
     f_r = np.array(f_r)
     fig, ax1 = plt.subplots(figsize=(18, 5))
     ax1.plot(c, 'ro--', label="cost")
-    ax1.plot(np.linspace(1, c.shape[0], 50), tgt_cost *
-             np.ones(50), 'g--', label='Target value')
+    # ax1.plot(np.linspace(1, c.shape[0], 50), tgt_cost *
+    #          np.ones(50), 'g--', label='Target value')
     # ax1.plot(-c,'ro')
     ax2 = ax1.twinx()
     # ax2.plot(f_m,"--o",label="f_m")
@@ -284,7 +284,9 @@ def analyze_cost_oscillations_2(G_k, o, d, lims=None, scale='linear'):
     ax1.set_xlabel("Iteration #")
     ax1.set_ylabel("Total cost")
     ax2.set_ylabel("Flow")
-    ax1.set_ylim([88, 92])
+    tgt_flow=np.mean(f_m[-40:]+f_r[-40:])
+    ylim_1=np.mean(c[-40:])
+    ax1.set_ylim([ylim_1*0.99, ylim_1*1.01])
     ax2.set_ylim([tgt_flow*0.98, tgt_flow*1.02])
 
     if not lims == None:

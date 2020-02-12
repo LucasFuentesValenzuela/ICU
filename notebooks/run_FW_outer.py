@@ -48,11 +48,11 @@ def main():
     #because we basically want to show the behavior with different values of phi
     G_0, OD = construct_graph(path, L_rebalancing_edge = L_r)
     edge_list = get_edge_list(G_0)
-    G_FW, ri_FW, n_outer, n_inner, balance = solve(
-        G_0.copy(), OD.copy(), edge_list, tol=10**-2, FW_tol=10**-2, max_iter_outer= no, max_iter= ni)
+    G_FW, ri_FW, n_outer, n_inner, balance, opt_res= solve(
+        G_0.copy(), OD.copy(), edge_list, tol=10**-2, FW_tol=10**-5, max_iter_outer= no, max_iter= ni)
     
     #Save the different documents
-    to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance] 
+    to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res]
 
     print('Saving to external .pkl file')
     if not os.path.exists(save_dir):

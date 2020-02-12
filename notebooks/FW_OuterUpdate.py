@@ -18,6 +18,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
     G_ = []
     ri_ = []
     balance=[]
+    opt_res_=[]
     #initialize certain values
     G_k = G_0
     ri_k, G_k = estimate_ri_k(G_k, ri_smoothing=False, a_k=0)
@@ -28,7 +29,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
     G_.append(G_k)
     ri_.append(ri_k)
     balance.append(balance_k)
-
+    
     compute = True
     try:
         while compute:
@@ -41,14 +42,18 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
             #maybe you can introduce a decreasing tolerance over the different problems
             #like start with tol=1 and then divide it by two at every step
             #currently this is dealt with by a max iter number
-            G_list, _, _, _ , n_iter= FW_graph_extension(
-                G_k, OD.copy(), edge_list, ri_k, FW_tol,
+            G_list, _, opt_res_k, _ , n_iter= FW_graph_extension(
+                G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol,
                 step='fixed', evolving_bounds=False, max_iter=max_iter)
 
-            G_end = G_list[-1]
+            G_end = G_list[-1]#this is a good choice only if you have monotonous decrease
 
             #estimate #ri_k, update OD, assign, update costs
             ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
+
+            # for n in G_end.nodes():
+            #     print(n, " ri: ", ri_new[n])
+            #     print(n, " G_ri: ", G_end.nodes[n]["ri"])
 
             balance_new=check_flow_cons_at_OD_nodes(G_k, OD)
             balance_norm=np.linalg.norm(balance_new)
@@ -63,6 +68,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
             #We might still get stuck on an local optimum? 
             #Hence, maybe include a condition on the actual norm of the balance vector
             #for instance np.linalg.norm(balance_k)<eps
+
             #TODO: make sure we do not have to check that across ALL nodes
             # if diff_ri(ri_k, ri_new) < tol or i>=max_iter_outer:
             #     compute=False
@@ -81,15 +87,15 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
             balance_k=balance_new
             print("Balance norm at the end of iteration: ", np.around(balance_norm,2))
             #Save the different variables
-            G_.append(G_k)
+            G_.append(G_list)
             ri_.append(ri_k)
             balance.append(balance_k)
-
+            opt_res_.append(opt_res_k)
             i += 1
             n_iter_tot.append(n_iter)
     except KeyboardInterrupt:
         print("Program interrupted by user -- Current data saved")
-        return G_, ri_, i-1, n_iter_tot, np.array(balance)
+        return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_
 
     """
     Returns: 
@@ -98,7 +104,7 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
     i: number of outer loop iterations, i.e. of ri update
     n_iter_tot: total number of iterations in the FW
     """
-    return G_, ri_, i-1, n_iter_tot, np.array(balance)
+    return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_
 
 
 def diff_ri(ri_k, ri_new):
@@ -112,7 +118,7 @@ def diff_ri(ri_k, ri_new):
 
 
 def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
-    step='line_search', evolving_bounds=True, max_iter=10**3):
+    step='fixed', evolving_bounds=False, max_iter=10**3):
     #ri_t are the estimate of ri at timestep k
 
     ###########################################
@@ -125,10 +131,11 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     opt_res['dual_gap'] = []
     OD_list = []
     G_list = []
-    G_list.append(G_0)
     G_k = G_0.copy()
+
     a_k = 1
     i = 1
+
     compute = True
 
     #################################
@@ -148,12 +155,12 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     G_k = init_flows(G_k, OD)
     G_k = update_costs(G_k)
 
+    G_list.append(G_k.copy()) 
     ###################################
     # Solve for the given ri_k
     ###################################
 
     while compute:  
-
         #perform AON assignment
         y_k = AoN(G_k, OD)
         #TODO: enable line search
@@ -190,7 +197,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         opt_res['obj'].append(obj_k)
         opt_res['a_k'].append(a_k)
         opt_res['dual_gap'].append(duality_gap)
-        G_list.append(G_k)
+        G_list.append(G_k.copy())
         y_list.append(y_k)
         OD_list.append(OD.copy())
         i += 1

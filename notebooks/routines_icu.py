@@ -169,7 +169,7 @@ def fixed_step(k):
     """
     Simplest version of the fixed step. I think I made a big mistake in implementing the previous ones (see main files). 
     """
-    gamma = 2/(k+2)
+    gamma = 2/(k**1.5+2)
     return gamma
 
 
