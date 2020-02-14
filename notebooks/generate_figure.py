@@ -16,17 +16,20 @@ def main():
     parser.add_argument("-pc", help="path of files for comparison") 
     parser.add_argument("-s", help="shift to apply to data for viz", type=int, default=0)
     args = parser.parse_args()
-    plot_balance(args)
-    plot_duality_gap(args)
+    path=args.p
+    path_c=args.pc 
+    shift=args.s
+    plot_balance(path, path_c, shift)
+    plot_duality_gap(path, path_c)
     return 
 
 
-def plot_balance(args):
-    path = os.path.join('Data/',args.p,'outputs',args.pc)
-    shift=args.s
+def plot_balance(path, path_c, shift, save=True):
+    path = os.path.join('Data/', path,'outputs', path_c)
     fig = plt.figure(figsize=(10,10))
     # ax1 = fig.add_subplot(1, 1, 1)
     for f in os.listdir(path):
+        print(f)
         if not f.endswith('.pkl'):
             continue
         f_parsed=f.split(".")[0]
@@ -35,13 +38,13 @@ def plot_balance(args):
         ni=f_parsed[4]
         no=f_parsed[6]
 
-        if args.pc.startswith("L"):
+        if os.path.split(path_c)[-1].startswith("L"):
             value=L_r
             flag='L'
-        elif args.pc.startswith("ni"):
+        elif os.path.split(path_c)[-1].startswith("ni"):
             value=ni
             flag='ni'
-        elif args.pc.startswith("no"):
+        elif os.path.split(path_c)[-1].startswith("no"):
             value=no
             flag='no'
         else:
@@ -49,7 +52,7 @@ def plot_balance(args):
             return
         # Default values
         with open(os.path.join(path,f), 'rb') as filename:
-            G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res = pickle.load(filename)
+            G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list = pickle.load(filename)
 
         #Generate balance plot
         balance_norm=np.linalg.norm(balance,axis=1)/np.sqrt(balance.shape[1])
@@ -58,7 +61,7 @@ def plot_balance(args):
     plt.ylabel('Balance norm')
     plt.yscale('log')
     plt.xlabel('Iteration #')
-    plt.xlim([0,15])
+    # plt.xlim([0,15])
     ax=fig.axes[0]
     handles, labels = ax.get_legend_handles_labels()
     # sort both labels and handles by labels
@@ -67,17 +70,19 @@ def plot_balance(args):
     for i in range(len(labels)):
         new_labels.append( flag + ': ' + str(labels[i]))
     ax.legend(handles, new_labels)
+    plt.show()
     # plt.legend()
-    plt.savefig(os.path.join(path,'balance.png'))
+    if save:
+        plt.savefig(os.path.join(path,'balance.png'))
     return
 
-def plot_duality_gap(args):
-    path = os.path.join('Data/',args.p,'outputs',args.pc)
+def plot_duality_gap(path, path_c):
+    path = os.path.join('Data/',path,'outputs',path_c)
     for f in os.listdir(path):
         if not f.endswith('.pkl'):
             continue
         with open(os.path.join(path,f), 'rb') as filename:
-            _, _, _, _, _, _, opt_res = pickle.load(filename) 
+            _, _, _, _, _, _, opt_res, _ = pickle.load(filename) 
         nplots=len(opt_res)
         ncols=3
         nrows=int(np.ceil(nplots/ncols))

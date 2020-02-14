@@ -146,7 +146,31 @@ def print_balance(balance, path=None):
     return
 
 
-
+def plot_stop_and_cost(opt_res):
+    """
+    Plots both the value of the stopping criterion and the total cost
+    """
+    nplots=len(opt_res)
+    ncols=2
+    nrows=int(np.ceil(nplots/ncols))
+    _, axes = plt.subplots(nrows, ncols, figsize=(20, 5*nrows))
+    for n in range(nplots):
+        i = int(np.floor(n / ncols))
+        j=n % ncols
+        axes[i,j].plot(opt_res[n]['stop'], label='stopping criterion', color='b')
+        axes[i,j].set_title('Outer loop # '+ str(n))
+        axes[i,j].set_yscale('log')
+    #     axes[i,j].set_xscale('log')
+        axes[i,j].grid(True)
+        axes[i,j].set_ylabel('stop crit')
+        ax_2=axes[i,j].twinx()
+        ax_2.plot(opt_res[n]['obj'], label='Total cost', color='g')
+        ax_2.set_ylabel('total cost')
+        ax_2.set_yscale('log')
+        # axes[i,j].set_ylim([10**2,10**8])
+        # axes[i,j].set_xlim([0,100])
+        axes[i,j].legend()
+        ax_2.legend()
 
 
 def plot_OD(OD_list, o, d):

@@ -27,6 +27,7 @@ def cost_per_edge(alpha, beta, phi_vec, flow_vec, kappa_vec, K_vec):
     return c
 
 
+#TODO: check this function!
 def Value_Total_Cost(G):
     F_E = 0
     for e in G.edges():  # you know for sure exactly what edge it is for
@@ -40,18 +41,19 @@ def Value_Total_Cost(G):
         if k < 10**-5:  # you eliminate the edges that are considered non-usable
             continue
         if e[1] == 'R':  # not including the cost of edges 1R and 2R might make sense, as we want to rebalance whatever happens
-            continue
+            # continue
+            pass #not sure we have to cancel it in the end
 
         # I am assuming there will be syntaxic problems there
         F_E += BPR_int_val(phi, x_k_e_m + x_k_e_r, k)
 
         #this has to be included because it is directly included in the definition of the cost function
         if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
-            F_E -= (x_k_e_m + x_k_e_r)*80  # INVERSE_DEMAND_SHIFT
+            F_E -= (x_k_e_m + x_k_e_r)*G[e[0]][e[1]]['shift']  # INVERSE_DEMAND_SHIFT
 
         # not entirely sure this needs to be here
-        # if 'pot' in G.nodes[e[1]]:
-        #     F_E+=G.nodes[e[1]]['pot']*flow_tmp
+        if 'pot' in G.nodes[e[1]]:
+            F_E+=G.nodes[e[1]]['pot']*(x_k_e_m + x_k_e_r)
 
     return F_E
 

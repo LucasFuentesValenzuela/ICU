@@ -56,8 +56,9 @@ def main():
     G_0, OD = construct_graph(path, L_rebalancing_edge = L_r)
     edge_list = get_edge_list(G_0)
     G_FW, ri_FW, n_outer, n_inner, balance, opt_res, OD_list = solve(
-        G_0.copy(), OD.copy(), edge_list, tol=10**-2, FW_tol=10**-8, 
-        max_iter_outer= no, max_iter= ni, evolving_bounds=evolving_bounds)
+        G_0.copy(), OD.copy(), edge_list, tol=10**-2, FW_tol=10**-6, 
+        max_iter_outer= no, max_iter= ni, evolving_bounds=evolving_bounds,
+        stopping_criterion = 'relative_progress')
     
     #Save the different documents
     to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list]

@@ -9,20 +9,20 @@ def main():
     """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("path", help="path to data directory",
+    parser.add_argument("-p", help="path to data directory",
                         type=str)
-    parser.add_argument("n_nodes", help="number of nodes in new graph",
+    parser.add_argument("-nn", help="number of nodes in new graph",
                         type=int)
-    parser.add_argument("n_OD", help="number of OD pairs in new graph",
+    parser.add_argument("-od", help="number of OD pairs in new graph",
                         type=int)
 
     #TODO: manage edge cases when n_OD is too large for instance
 
     args = parser.parse_args()
-    path = os.path.join('Data/', args.path)
+    path = os.path.join('Data/', args.p)
 
     _, _ = generate_random_graph(
-        args.n_nodes, args.n_OD, path)
+        args.nn, args.od, path)
 
     return
 

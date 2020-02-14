@@ -12,7 +12,9 @@ from result_analysis import check_flow_cons_at_OD_nodes
 #TODO: update stopping criterion (should be based on balance norm I think)
 #TODO: check duality gap
 
-def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, max_iter=10**3, evolving_bounds=True):
+def solve(
+    G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, 
+    max_iter=10**3, evolving_bounds=True, stopping_criterion = 'relative_progress'):
 
     #Variables to store at each iterations
     i = 1
@@ -47,7 +49,8 @@ def solve(G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, ma
             #currently this is dealt with by a max iter number
             G_list, _, opt_res_k, OD_list_k , n_iter= FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol,
-                step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter)
+                step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter,
+                stopping_criterion = 'relative_progress')
 
             G_end = G_list[-1]#this is a good choice only if you have monotonous decrease
 
@@ -118,7 +121,7 @@ def diff_ri(ri_k, ri_new):
 
 
 def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
-    step='fixed', evolving_bounds=False, max_iter=10**3):
+    step='fixed', evolving_bounds=False, max_iter=10**3, stopping_criterion = 'relative_progress'):
     #ri_t are the estimate of ri at timestep k
 
     ###########################################
@@ -128,7 +131,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     opt_res = dict()
     opt_res['a_k'] = []
     opt_res['obj'] = []
-    opt_res['dual_gap'] = []
+    opt_res['stop'] = []
     OD_list = []
     G_list = []
     G_k = G_0.copy()
@@ -177,17 +180,34 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
             print("wrong optim step chosen")
             return
 
-        #compute the duality gap
-        duality_gap = compute_duality_gap(G_k, y_k)
-        if duality_gap < FW_tol or i >= max_iter:
-            #here we put a limit on the number of computations as the problem is likely to change
-            #however we do not do it in the main loop!
-            compute = False
-            if duality_gap < FW_tol:
-                print("     FW solved to tol")
-            else:
-                print("     Max inner iterations reached")
-            print("     Number of inner loop iterations: ", i)
+        ######################################
+        # Stopping criterion
+
+        if stopping_criterion == 'duality_gap':
+            #compute the duality gap
+            duality_gap = compute_duality_gap(G_k, y_k)
+            opt_res['stop'].append(duality_gap)
+            if duality_gap < FW_tol or i >= max_iter:
+                #here we put a limit on the number of computations as the problem is likely to change
+                #however we do not do it in the main loop!
+                compute = False
+                if duality_gap < FW_tol:
+                    print("     FW solved to tol")
+                else:
+                    print("     Max inner iterations reached")
+                print("     Number of inner loop iterations: ", i)
+        elif stopping_criterion == 'relative_progress' and i>1:
+            obj_prev = opt_res['obj'][-1]
+            rel_progress= abs(obj_prev-obj_k)/obj_prev
+            opt_res['stop'].append(rel_progress)
+            if rel_progress < FW_tol or i >= max_iter:
+                compute = False
+                if rel_progress < FW_tol:
+                    print("     FW solved to tol")
+                else:
+                    print("    Max inner iterations reached")
+                print("     Number of inner loop iterations: ", i)
+        ############################################
 
         #update the flows
         G_k = update_flows(G_k, y_k, a_k, edge_list)
@@ -197,7 +217,6 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         #save for analyses
         opt_res['obj'].append(obj_k)
         opt_res['a_k'].append(a_k)
-        opt_res['dual_gap'].append(duality_gap)
         G_list.append(G_k.copy())
         y_list.append(y_k)
         OD_list.append(OD.copy())
