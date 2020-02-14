@@ -6,6 +6,7 @@ import networkx as nx
 
 #sign not necessary (think about what is actually D-1 and about the fact that it has a negative sign in front)
 def update_costs(G):
+    G=G.copy()
     UPPER_LIMIT = 10**22
 
     for e in G.edges:
@@ -54,7 +55,7 @@ def estimate_ri_k(G, ri_smoothing, a_k):
     return ri_k, G
 
 
-def update_OD(OD, ri_k, a_k, G, evolving_bounds=True):
+def update_OD(OD, ri_k, G, evolving_bounds=True):
 
     #update the OD pairs for rebalancers
     eps = 10**-6
@@ -65,21 +66,24 @@ def update_OD(OD, ri_k, a_k, G, evolving_bounds=True):
             else:
                 OD[(n, 'R')] = 0
 
-    #update the bounds for "regular OD pairs"
     #TODO: improve the evolving bounds routine
     #currently, we keep lower bounds at zero
     if evolving_bounds:
-        #parameters, to be given as arguments in the future
-        #those parameters should really be given as arguments
-        l1 = 10**-1
-        l2 = 2  # such a high value currently disables it
+        #TODO: parameters, to be given as arguments in the future
+        l1 = 10**-3
+        l2 = 0.1  # such a high value currently disables it
         alpha = 1.2  # I think a moving value on that would be better. And same for the l1/l2. should be based o2
         for (o, d) in OD.keys():
-
             if d.endswith('_p'):  # only the nodes that are the dummy nodes
                 crt_Ulim = OD[o, d]  # currently, we treat only the upper limit
                 crt_p_flow = get_total_flow_to_dummy_node(G, d)
+                if crt_p_flow == 0:
+                    continue
                 rel_U_error = abs(crt_p_flow-crt_Ulim)/crt_p_flow
+                # print("----")
+                # print(crt_p_flow)
+                # print(crt_Ulim)
+                # print(rel_U_error)
                 # UPPER BOUND
                 if rel_U_error <= l1:  # x_k too close to U
                     new_Ulim = alpha*crt_Ulim
@@ -87,6 +91,7 @@ def update_OD(OD, ri_k, a_k, G, evolving_bounds=True):
                     new_Ulim = alpha*crt_p_flow
                 else:
                     new_Ulim = crt_Ulim
+                # print(new_Ulim)
                 OD[o, d] = new_Ulim
     return OD
 
@@ -169,7 +174,7 @@ def fixed_step(k):
     """
     Simplest version of the fixed step. I think I made a big mistake in implementing the previous ones (see main files). 
     """
-    gamma = 2/(k**1.5+2)
+    gamma = 2/(k+1)
     return gamma
 
 
@@ -178,6 +183,7 @@ def update_flows(G, y_k, a_k, edge_list, solver='Outer'):
     We want to update the flows differently depending on using the ICU or the outer loop solver. 
     Why? Simply because in the ICU we do not use the rebalancing update for what we are doing. 
     """
+    G=G.copy()
     if solver == 'Outer':
         flags = ['f_m', 'f_r']
     elif solver == 'ICU':

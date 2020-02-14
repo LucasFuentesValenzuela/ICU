@@ -228,8 +228,7 @@ def analyze_cost_oscillations(G_k, o, d, lims=None, scale='log'):
     f_m = []
     f_r = []
     for G in G_k:
-        c.append(((G[o][d]['cost']+G[d][d+'_p']['cost']-G[o]
-                   [d+'_p']['cost'])/G[o][d+'_p']['cost']))
+        c.append(((G[o][d]['cost']+G[d][o+'_p']['cost']-G[o][o+'_p']['cost'])/G[o][o+'_p']['cost']))
         f_m.append(G[o][d]['f_m'])
         f_r.append(G[o][d]['f_r'])
     c = np.abs(np.array(c))
@@ -259,7 +258,7 @@ def analyze_cost_oscillations_2(G_k, o, d, lims=None, scale='linear'):
     f_m = []
     f_r = []
     for G in G_k:
-        c.append(G[o][d]['cost']+G[d][d+'_p']['cost'])
+        c.append(G[o][d]['cost']+G[d][o+'_p']['cost'])
         f_m.append(G[o][d]['f_m'])
         f_r.append(G[o][d]['f_r'])
     c = np.abs(np.array(c))
@@ -269,7 +268,7 @@ def analyze_cost_oscillations_2(G_k, o, d, lims=None, scale='linear'):
 
     f_m = np.array(f_m)
     f_r = np.array(f_r)
-    fig, ax1 = plt.subplots(figsize=(18, 5))
+    fig, ax1 = plt.subplots(figsize=(8, 5))
     ax1.plot(c, 'ro--', label="cost")
     # ax1.plot(np.linspace(1, c.shape[0], 50), tgt_cost *
     #          np.ones(50), 'g--', label='Target value')
