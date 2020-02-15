@@ -8,15 +8,15 @@ NO=50
 
 
 PATH='25Nodes'
-SD='rel_prog/ni_comparison'
-
-for ni in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $ni -no $NO -sd $SD; done
+SD='rel_prog/ni_comparison_Bumps'
+$CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni 100 -no $NO -sd $SD
+# for ni in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $ni -no $NO -sd $SD; done
 # $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
 
-PATH='25Nodes'
-SD='rel_prog/L_comparison'
+# PATH='25Nodes'
+# SD='rel_prog/L_comparison'
 
-for L in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $NI -no $NO -sd $SD; done
+# for L in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $NI -no $NO -sd $SD; done
 # $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
 
 # #EXPERIMENT 2

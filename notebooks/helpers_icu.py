@@ -31,6 +31,7 @@ def cost_per_edge(alpha, beta, phi_vec, flow_vec, kappa_vec, K_vec):
 def Value_Total_Cost(G):
     F_E = 0
     for e in G.edges():  # you know for sure exactly what edge it is for
+        cost_edge=0
         x_k_e_m = G[e[0]][e[1]]['f_m']
         x_k_e_r = G[e[0]][e[1]]['f_r']
 
@@ -45,17 +46,19 @@ def Value_Total_Cost(G):
             pass #not sure we have to cancel it in the end
 
         # I am assuming there will be syntaxic problems there
-        F_E += BPR_int_val(phi, x_k_e_m + x_k_e_r, k)
+        cost_edge += BPR_int_val(phi, x_k_e_m + x_k_e_r, k)
 
         #this has to be included because it is directly included in the definition of the cost function
         if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
-            F_E -= (x_k_e_m + x_k_e_r)*G[e[0]][e[1]]['shift']  # INVERSE_DEMAND_SHIFT
+            cost_edge -= (x_k_e_m + x_k_e_r)*G[e[0]][e[1]]['shift']  # INVERSE_DEMAND_SHIFT
 
         # not entirely sure this needs to be here
         if 'pot' in G.nodes[e[1]]:
-            F_E+=G.nodes[e[1]]['pot']*(x_k_e_m + x_k_e_r)
+            cost_edge += G.nodes[e[1]]['pot']*(x_k_e_m + x_k_e_r)
 
-    return F_E
+        F_E += cost_edge
+        G[e[0]][e[1]]['tot_cost']=cost_edge
+    return F_E, G
 
 
 

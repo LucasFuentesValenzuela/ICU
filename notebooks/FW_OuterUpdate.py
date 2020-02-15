@@ -159,31 +159,18 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     G_k = update_costs(G_k)
 
     G_list.append(G_k.copy()) 
+    obj_k, G_k = Value_Total_Cost(G_k)
+    opt_res['obj'].append(obj_k)
     ###################################
     # Solve for the given ri_k
     ###################################
 
     while compute:  
 
-        #perform AON assignment
-        y_k = AoN(G_k, OD)
-
-        #TODO: enable line search
-        if step == 'line_search':
-            # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
-            print("not implemented")
-            return
-        elif step == 'fixed':
-            a_k = fixed_step(i)
-            obj_k=Value_Total_Cost(G_k)
-        else:
-            print("wrong optim step chosen")
-            return
-
         ######################################
         # Stopping criterion
-
-        if stopping_criterion == 'duality_gap':
+        #######################################
+        if stopping_criterion == 'duality_gap' and i>1:
             #compute the duality gap
             duality_gap = compute_duality_gap(G_k, y_k)
             opt_res['stop'].append(duality_gap)
@@ -196,8 +183,10 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
                 else:
                     print("     Max inner iterations reached")
                 print("     Number of inner loop iterations: ", i)
+                continue
         elif stopping_criterion == 'relative_progress' and i>1:
-            obj_prev = opt_res['obj'][-1]
+            obj_prev = opt_res['obj'][-2]
+            obj_k = opt_res['obj'][-1]
             rel_progress= abs(obj_prev-obj_k)/obj_prev
             opt_res['stop'].append(rel_progress)
             if rel_progress < FW_tol or i >= max_iter:
@@ -207,14 +196,32 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
                 else:
                     print("    Max inner iterations reached")
                 print("     Number of inner loop iterations: ", i)
+                continue
         ############################################
+        # ASSIGNMENT
+        ############################################
+        #perform AON assignment
+        y_k = AoN(G_k, OD)
 
+        #TODO: enable line search
+        if step == 'line_search':
+            # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
+            print("not implemented")
+            return
+        elif step == 'fixed':
+            a_k = fixed_step(i)
+        else:
+            print("wrong optim step chosen")
+            return
+        ############################################
+        
         #update the flows
         G_k = update_flows(G_k, y_k, a_k, edge_list)
         G_k = update_costs(G_k)
         if evolving_bounds:
             OD = update_OD(OD, ri_k, G_k, evolving_bounds) #you need to update the OD (evolving bounds)
         #save for analyses
+        obj_k, G_k=Value_Total_Cost(G_k)
         opt_res['obj'].append(obj_k)
         opt_res['a_k'].append(a_k)
         G_list.append(G_k.copy())

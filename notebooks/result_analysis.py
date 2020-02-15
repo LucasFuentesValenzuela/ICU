@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from helpers_icu import BPR
+from helpers_icu import BPR, BPR_int_val
 import networkx as nx
 import os
 
@@ -10,6 +10,8 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
         attrs), figsize=(20, 5*len(G_.edges())))
     i = 0
 
+    tot_cost=np.zeros((len(G_.edges()), len(G_list)))
+    tot_cost_2=np.zeros((len(G_.edges()), len(G_list)))
     if dots:
         options = '--o'
     else:
@@ -18,23 +20,56 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
     for e in G_.edges():
         for j in range(len(attrs)):
             att = []
+            att_2 =[]
             if attrs[j] == "y_m":
                 for y_k in y_list:
                     att.append(y_k[e, 'f_m'])
             elif attrs[j] == "y_r":
                 for y_k in y_list:
                     att.append(y_k[e, 'f_r'])
+            #pretty much copy-pasted from the value cost function
+            elif attrs[j] == "tot_cost": #we reconstruct total value value
+                for G in G_list:
+                    x_k_e_m = G[e[0]][e[1]]['f_m']
+                    x_k_e_r = G[e[0]][e[1]]['f_r']
+                    phi = G[e[0]][e[1]]['phi']
+                    k = G[e[0]][e[1]]['k']
+                    if k < 10**-5:  # you eliminate the edges that are considered non-usable
+                        att.append(np.nan)
+                        # print("skipping because nan")
+                        # print(G[e[0]][e[1]]['cost'])
+                        continue
+
+                    # I am assuming there will be syntaxic problems there
+                    F_E =  BPR_int_val(phi, x_k_e_m + x_k_e_r, k)
+
+                    #this has to be included because it is directly included in the definition of the cost function
+                    if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
+                        F_E -= (x_k_e_m + x_k_e_r)*G[e[0]][e[1]]['shift']  # INVERSE_DEMAND_SHIFT
+
+                    # not entirely sure this needs to be here
+                    if 'pot' in G.nodes[e[1]]:
+                        F_E+=G.nodes[e[1]]['pot']*(x_k_e_m + x_k_e_r)
+                    att.append(F_E)
+                    try:
+                        att_2.append(G[e[0]][e[1]]['tot_cost'])
+                    except KeyError:
+                        att_2.append(np.nan)
+                tot_cost[i,:] = np.array(att)
+                tot_cost_2[i,:] = np.array(att_2)
             else:
                 for G in G_list:
                     att.append(G[e[0]][e[1]][attrs[j]])
             axes[i, j].plot(att, options, label=attrs[j])
+            if attrs[j] =="tot_cost":
+                axes[i,j].plot(att_2,options, label='from loop')
             axes[i, j].grid(True)
             axes[i, j].set_xlabel('Iteration #')
             axes[i, j].set_title(' Edge : ' + str(e))
             axes[i, j].legend()
             axes[i, j].set_xlim(lims)
         i += 1
-
+    return tot_cost, tot_cost_2
 
 def plot_node_attrs(G_list, attrs, lims=None):
     G_ = G_list[0]
