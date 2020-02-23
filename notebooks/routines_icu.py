@@ -31,12 +31,11 @@ def update_costs(G):
     return G
 
 
-def estimate_ri_k(G, ri_smoothing, a_k):
+def estimate_ri_k(G, ri_smoothing, a_k, ri_prev):
     """
     Determine whether each node is in excess or deficit of rebalancers.
     """
     ri_k = dict()
-    ri_k_prev = dict()
 
     if ri_smoothing:
         beta = a_k
@@ -45,13 +44,17 @@ def estimate_ri_k(G, ri_smoothing, a_k):
 
     for n in G.nodes():
         ri_k[n] = 0
-        ri_k_prev[n] = G.nodes[n]["ri"]
+        # ri_prev[n] = G.nodes[n]["ri"]
     for e in G.edges():
         if not e[1].endswith('_p') and e[1] != 'R':
             ri_k[e[0]] += G[e[0]][e[1]]['f_m']
             ri_k[e[1]] -= G[e[0]][e[1]]['f_m']
     for n in G.nodes():
-        G.nodes[n]["ri"] = (1-beta) * ri_k_prev[n] + beta*ri_k[n]
+        if ri_prev==[]:
+            G.nodes[n]["ri"]=ri_k[n]
+        else:
+            G.nodes[n]["ri"] = (1-beta) * ri_prev[n] + beta*ri_k[n]
+        ri_k[n] = G.nodes[n]["ri"] 
     return ri_k, G
 
 
@@ -125,8 +128,6 @@ def AoN(G, OD):
                 flag = 'f_m'
             path = nx.shortest_path(G, source=o, target=d, weight='cost')
 
-            #in this case, we are assigning to the dummy edge
-            #again, not sure that the dummy edges are truly necessary in the end
             #TODO: figure out what the commented version here below actually meant
             #it seems to me like it was a fix to make sure we introduce the
             #"complement" of the demand
@@ -170,12 +171,37 @@ def get_total_flow_to_dummy_node(G, d):
 #######################################
 
 
-def fixed_step(k):
+def fixed_step(k, y_k, G_k, update=True, update_factor=1.1):
     """
     Simplest version of the fixed step. I think I made a big mistake in implementing the previous ones (see main files). 
     """
-    gamma = 2/(k+1)
-    return gamma
+    #The update factor quantifies to how much of the capacity we are allowed to go on any one rebalancing edge
+
+    gamma = 2/(k+2) #initially only contained this
+
+    if not update:
+        return gamma
+
+    #now we introduce a slight modification to avoid overshooting in the direction of too much rebalancing
+    beta=[]#coefficients of updates
+    for e in G_k.edges():
+        if e[1]=='R':
+            x_max=update_factor*G_k[e[0]][e[1]]['k']
+            x_k_e=G_k[e[0]][e[1]]['f_m']+G_k[e[0]][e[1]]['f_r']
+            y_k_e=y_k[(e[0],e[1]),'f_r']+y_k[(e[0],e[1]),'f_r']
+            try:
+                beta_=(x_max-x_k_e)/(y_k_e-x_k_e)
+            except ZeroDivisionError:
+                beta_=np.nan
+            if beta_<0:
+                beta.append(np.nan)
+            else:
+                beta.append(beta_)
+
+    min_beta=np.nanmin(beta)
+    if np.isnan(min_beta):
+        return gamma    
+    return np.minimum(gamma, min_beta) 
 
 
 def update_flows(G, y_k, a_k, edge_list, solver='Outer'):

@@ -1,44 +1,26 @@
 #!/bin/bash
 
+
+#TODO: include tolerances as parameters too
+
 #default parameters values
-NI=5000
+NI=1000
 LR=10000
-NO=50
+NO=20
 
+# PATH='2Nodes'
+SD='quals/ni_comparison'
+# $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 1 
 
+# PATH='10Nodes'
+# $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 1
 
 PATH='25Nodes'
-SD='rel_prog/ni_comparison_Bumps'
-$CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni 100 -no $NO -sd $SD
-# for ni in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $ni -no $NO -sd $SD; done
-# $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
+for L in 10 100 1000 ; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 0; done
 
-# PATH='25Nodes'
-# SD='rel_prog/L_comparison'
 
-# for L in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $NI -no $NO -sd $SD; done
-# $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
-
-# #EXPERIMENT 2
-# PATH='25Nodes'
-# SD='ni_comparison'
-# NO=20
-
-# for ni in 10 100 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $ni -no $NO -sd $SD; done
-# $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
-
-# #EXPERIMENT 3
 # PATH='100Nodes'
-# SD='L_comparison'
-# NO=15 #YOU CERTAINLY NEED MORE OPERATIONS FOR 100 NODES
+# $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 1
 
-# for L in 1000 10000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $NI -no $NO -sd $SD; done
-# $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
-
-# #EXPERIMENT 4
-# PATH='100Nodes'
-# SD='ni_comparison'
-# NO=15
-
-# for ni in 10 100 1000; do $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $L -ni $ni -no $NO -sd $SD; done
-# $CONDA_PYTHON_EXE generate_figure.py -p $PATH -pc $SD
+# PATH='200Nodes'
+# $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 1

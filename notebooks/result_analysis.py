@@ -4,7 +4,7 @@ from helpers_icu import BPR, BPR_int_val
 import networkx as nx
 import os
 
-def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
+def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None, ri_=None, only_R=False):
     G_ = G_list[0]
     _, axes = plt.subplots(len(G_.edges()), len(
         attrs), figsize=(20, 5*len(G_.edges())))
@@ -18,6 +18,8 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
         options = '--'
 
     for e in G_.edges():
+        if only_R and e[1]!='R':
+            continue
         for j in range(len(attrs)):
             att = []
             att_2 =[]
@@ -27,6 +29,7 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
             elif attrs[j] == "y_r":
                 for y_k in y_list:
                     att.append(y_k[e, 'f_r'])
+
             #pretty much copy-pasted from the value cost function
             elif attrs[j] == "tot_cost": #we reconstruct total value value
                 for G in G_list:
@@ -36,6 +39,7 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
                     k = G[e[0]][e[1]]['k']
                     if k < 10**-5:  # you eliminate the edges that are considered non-usable
                         att.append(np.nan)
+                        att_2.append(np.nan)
                         # print("skipping because nan")
                         # print(G[e[0]][e[1]]['cost'])
                         continue
@@ -51,6 +55,7 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
                     if 'pot' in G.nodes[e[1]]:
                         F_E+=G.nodes[e[1]]['pot']*(x_k_e_m + x_k_e_r)
                     att.append(F_E)
+
                     try:
                         att_2.append(G[e[0]][e[1]]['tot_cost'])
                     except KeyError:
@@ -60,9 +65,14 @@ def plot_edge_attrs(G_list, y_list, attrs, dots=True, lims=None):
             else:
                 for G in G_list:
                     att.append(G[e[0]][e[1]][attrs[j]])
+                    if attrs[j]=='k':
+                        if e[1]=='R':
+                            att_2.append(ri_[e[0]])
             axes[i, j].plot(att, options, label=attrs[j])
             if attrs[j] =="tot_cost":
                 axes[i,j].plot(att_2,options, label='from loop')
+            if attrs[j]=='k' and not ri_==None:
+                axes[i,j].plot(att_2,options, label='ri')
             axes[i, j].grid(True)
             axes[i, j].set_xlabel('Iteration #')
             axes[i, j].set_title(' Edge : ' + str(e))
@@ -181,7 +191,7 @@ def print_balance(balance, path=None):
     return
 
 
-def plot_stop_and_cost(opt_res):
+def plot_stop_and_cost(opt_res, scale='log'):
     """
     Plots both the value of the stopping criterion and the total cost
     """
@@ -194,18 +204,54 @@ def plot_stop_and_cost(opt_res):
         j=n % ncols
         axes[i,j].plot(opt_res[n]['stop'], label='stopping criterion', color='b')
         axes[i,j].set_title('Outer loop # '+ str(n))
-        axes[i,j].set_yscale('log')
+        axes[i,j].set_yscale(scale)
     #     axes[i,j].set_xscale('log')
         axes[i,j].grid(True)
         axes[i,j].set_ylabel('stop crit')
         ax_2=axes[i,j].twinx()
         ax_2.plot(opt_res[n]['obj'], label='Total cost', color='g')
         ax_2.set_ylabel('total cost')
-        ax_2.set_yscale('log')
+        ax_2.set_yscale(scale)
         # axes[i,j].set_ylim([10**2,10**8])
         # axes[i,j].set_xlim([0,100])
         axes[i,j].legend()
         ax_2.legend()
+
+def plot_balance_list(balance_list):
+    """
+    Plots both the value of the stopping criterion and the total cost
+    """
+    nplots=len(balance_list)
+    ncols=2
+    nrows=int(np.ceil(nplots/ncols))
+    _, axes = plt.subplots(nrows, ncols, figsize=(20, 5*nrows))
+    for n in range(nplots):
+        i = int(np.floor(n / ncols))
+        j=n % ncols
+        axes[i,j].plot(balance_list[n], label='balance', color='b')
+        axes[i,j].set_title('Outer loop # '+ str(n))
+        # axes[i,j].set_yscale('log')
+    #     axes[i,j].set_xscale('log')
+        axes[i,j].grid(True)
+        axes[i,j].set_ylabel('balance norm')
+        axes[i,j].legend()
+
+def plot_ri_list(ri_FW):
+    r=dict()
+    for n in ri_FW[0].keys():
+        r[n]=[]
+        
+    for n in r.keys():
+        for ri in ri_FW:
+            r[n].append(ri[n])
+
+    plt.figure(figsize=(13,10))
+    for n in r.keys():
+        plt.plot(r[n],'--', label=n)
+    plt.grid()
+    plt.legend()
+
+
 
 
 def plot_OD(OD_list, o, d):

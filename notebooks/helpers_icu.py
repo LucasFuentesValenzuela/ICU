@@ -40,6 +40,7 @@ def Value_Total_Cost(G):
         k = G[e[0]][e[1]]['k']
 
         if k < 10**-5:  # you eliminate the edges that are considered non-usable
+            G[e[0]][e[1]]['tot_cost']=np.nan
             continue
         if e[1] == 'R':  # not including the cost of edges 1R and 2R might make sense, as we want to rebalance whatever happens
             # continue

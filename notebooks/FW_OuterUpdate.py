@@ -14,18 +14,21 @@ from result_analysis import check_flow_cons_at_OD_nodes
 
 def solve(
     G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, 
-    max_iter=10**3, evolving_bounds=True, stopping_criterion = 'relative_progress'):
+    max_iter=10**3, evolving_bounds=True, 
+    stopping_criterion = 'relative_progress', update=True,
+    ri_smoothing=True):
 
     #Variables to store at each iterations
     i = 1
     G_ = []
     ri_ = []
     balance=[]
+    balance_list=[]#list of list of balances
     opt_res_=[]
     OD_list=[]
     #initialize certain values
     G_k = G_0
-    ri_k, G_k = estimate_ri_k(G_k, ri_smoothing=False, a_k=0)
+    ri_k, G_k = estimate_ri_k(G_k, ri_smoothing=False, a_k=0, ri_prev=[])
     balance_k=check_flow_cons_at_OD_nodes(G_k, OD)
     balance_k=np.ones(balance_k.shape)
     n_iter_tot=[]
@@ -34,34 +37,38 @@ def solve(
     ri_.append(ri_k)
     OD_list.append(OD)
     balance.append(balance_k)
-    
+    # opt_res_.append([])
+
+    # FW_tol_k=.1
+    FW_tol_k=FW_tol
+
     compute = True
     try:
         while compute:
             print("##########################################")
             print("ITERATION #: ", i)
-            # print("CURRENT RI_k")
+            print("Current FW tol: ", FW_tol_k)
             # print(ri_k)
 
             #TODO: maybe you do not have to go all the way in the computation
             #maybe you can introduce a decreasing tolerance over the different problems
             #like start with tol=1 and then divide it by two at every step
             #currently this is dealt with by a max iter number
-            G_list, _, opt_res_k, OD_list_k , n_iter= FW_graph_extension(
-                G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol,
+            G_list, _, opt_res_k, OD_list_k , n_iter, balance_ = FW_graph_extension(
+                G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol_k,
                 step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter,
-                stopping_criterion = 'relative_progress')
+                stopping_criterion = stopping_criterion, update=update)
 
             G_end = G_list[-1]#this is a good choice only if you have monotonous decrease
 
             #estimate #ri_k, update OD, assign, update costs
-            ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=False, a_k=0)
+            ri_new, G_end = estimate_ri_k(G_end, ri_smoothing=ri_smoothing, a_k=1/2, ri_prev=ri_k)
 
             # for n in G_end.nodes():
             #     print(n, " ri: ", ri_new[n])
             #     print(n, " G_ri: ", G_end.nodes[n]["ri"])
 
-            balance_new=check_flow_cons_at_OD_nodes(G_k, OD)
+            balance_new=check_flow_cons_at_OD_nodes(G_end, OD)
             balance_norm=np.linalg.norm(balance_new)
             diff_balance=np.linalg.norm(balance_new-balance_k)
 
@@ -84,21 +91,44 @@ def solve(
 
             #update the values for the new iteration
             ri_k = ri_new
+            #some kind of rebalancer smoothing
+            #TODO: integrate in the estimate ri_k routine
+            r=dict()
+            for n in ri_k.keys():
+                r[n]=[]
+            for n in r.keys():
+                for ri in ri_:
+                    r[n].append(ri[n])
+                    ind=np.minimum(4,len(r[n]))
+                    avg_n=np.mean(r[n][-ind:])
+                    beta=2/(i+2)    
+                    ri_k[n]=(beta)*ri_k[n]+(1-beta)*avg_n
+            ri_.append(ri_k)
+
             # TODO: does it work if you actually keep the last version of G (as you solved it? )
             G_k = G_end
             balance_k=balance_new
+
+            #the below might be completely wrong
+            #indeed, OD is not complete here as it does not contain the rebalancing 
+            #therefore, surely it is smaller than the actual OD in the dataset
             print("Balance norm at the end of iteration: ", np.around(balance_norm,2))
+
             #Save the different variables
             G_.append(G_list)
-            ri_.append(ri_k)
+            
             balance.append(balance_k)
             opt_res_.append(opt_res_k)
-            i += 1
             n_iter_tot.append(n_iter)
             OD_list.append(OD_list_k)
+            balance_list.append(balance_)
+
+            FW_tol_k=np.maximum(FW_tol,FW_tol_k/2)
+
+            i += 1
     except KeyboardInterrupt:
         print("Program interrupted by user -- Current data saved")
-        return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list
+        return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list, balance_list
 
     """
     Returns: 
@@ -107,7 +137,7 @@ def solve(
     i: number of outer loop iterations, i.e. of ri update
     n_iter_tot: total number of iterations in the FW
     """
-    return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list
+    return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list, balance_list
 
 
 def diff_ri(ri_k, ri_new):
@@ -121,7 +151,8 @@ def diff_ri(ri_k, ri_new):
 
 
 def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
-    step='fixed', evolving_bounds=False, max_iter=10**3, stopping_criterion = 'relative_progress'):
+    step='fixed', evolving_bounds=False, max_iter=10**3, 
+    stopping_criterion = 'relative_progress', update=True):
     #ri_t are the estimate of ri at timestep k
 
     ###########################################
@@ -134,6 +165,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     opt_res['stop'] = []
     OD_list = []
     G_list = []
+    balance_list=[]
+
     G_k = G_0.copy()
 
     a_k = 1
@@ -145,7 +178,6 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     # update the OD pairs and capacities
     #################################
     OD = update_OD(OD, ri_k, G_k, evolving_bounds)
-    # print("CURRENT OD:", OD)
     #you update capacities because you have new values of ri_k
     G_k = update_capacities(G_k, ri_k)
     # we need to ensure that the information is passed on to the costs
@@ -155,7 +187,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     # Reinitialize
     ###################################
 
-    G_k = init_flows(G_k, OD)
+    G_k = init_flows(G_k, OD) #I think this is stupid: you lose so much. You should make the current state feasible (i.e. take away some flow but keep it feasible)
     G_k = update_costs(G_k)
 
     G_list.append(G_k.copy()) 
@@ -166,10 +198,29 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     ###################################
 
     while compute:  
+        #TODO: figure out what the best order between assignment and stopping criterion is
+        ############################################
+        # ASSIGNMENT
+        ############################################
+        #perform AON assignment
+        y_k = AoN(G_k, OD)
 
+        #TODO: enable line search
+        if step == 'line_search':
+            # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
+            print("not implemented")
+            return
+        elif step == 'fixed':
+            a_k = fixed_step(i, y_k, G_k, update=update)
+        else:
+            print("wrong optim step chosen")
+            return
+        ############################################
         ######################################
         # Stopping criterion
         #######################################
+        n_rolling=5
+
         if stopping_criterion == 'duality_gap' and i>1:
             #compute the duality gap
             duality_gap = compute_duality_gap(G_k, y_k)
@@ -189,46 +240,39 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
             obj_k = opt_res['obj'][-1]
             rel_progress= abs(obj_prev-obj_k)/obj_prev
             opt_res['stop'].append(rel_progress)
-            if rel_progress < FW_tol or i >= max_iter:
+            if len(opt_res['stop'])>n_rolling and np.mean(opt_res['stop'][-n_rolling:]) < FW_tol:
                 compute = False
                 if rel_progress < FW_tol:
+                    print("     Number of inner loop iterations: ", i)
                     print("     FW solved to tol")
-                else:
-                    print("    Max inner iterations reached")
+                    continue
+            elif i >= max_iter:
+                compute=False
+                print("    Max inner iterations reached")
                 print("     Number of inner loop iterations: ", i)
                 continue
-        ############################################
-        # ASSIGNMENT
-        ############################################
-        #perform AON assignment
-        y_k = AoN(G_k, OD)
-
-        #TODO: enable line search
-        if step == 'line_search':
-            # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
-            print("not implemented")
-            return
-        elif step == 'fixed':
-            a_k = fixed_step(i)
-        else:
-            print("wrong optim step chosen")
-            return
-        ############################################
+        
         
         #update the flows
         G_k = update_flows(G_k, y_k, a_k, edge_list)
         G_k = update_costs(G_k)
+
         if evolving_bounds:
             OD = update_OD(OD, ri_k, G_k, evolving_bounds) #you need to update the OD (evolving bounds)
+
+
+        balance_new=check_flow_cons_at_OD_nodes(G_k, OD)
+        balance_norm=np.linalg.norm(balance_new)/np.sqrt(balance_new.shape[0])
+        balance_list.append(balance_norm)
         #save for analyses
-        obj_k, G_k=Value_Total_Cost(G_k)
+        obj_k, G_k = Value_Total_Cost(G_k.copy())
         opt_res['obj'].append(obj_k)
         opt_res['a_k'].append(a_k)
         G_list.append(G_k.copy())
-        y_list.append(y_k)
+        y_list.append(y_k.copy())
         OD_list.append(OD.copy())
         i += 1
-    return G_list, y_list, opt_res, OD_list, i-1
+    return G_list, y_list, opt_res, OD_list, i-1, balance_list
 
 
 def compute_duality_gap(G_k, y_k):
@@ -247,79 +291,3 @@ def compute_duality_gap(G_k, y_k):
             d_gap += (x_k_ij-y_k_ij)*c_k_ij
 
     return d_gap
-
-
-
-
-
-
-
-
-###########################################################################
-# Original version of functions in FW_icu
-#
-# Those functions are already present in the FW_icu file. We need another
-# version because here we want to update all flows at the same time
-###########################################################################
-
-#TODO: consolidate them all in a single file, with flexible versions
-
-
-#TODO: Deprecate
-
-#main problem in the below: the flows are updated twice in the "same" direction
-#as the updates occur in place I think
-#plus, there is absolutely no need to compute the flows here... 
-
-# def fixed_step(G, y_k, edge_list, k):
-#     """
-#     """
-
-#     #here we actually update both the rebalancing and the passenger flows
-#     #we need to take both into account because we are solving for a fixed value of the ri's
-
-#     # the update step is very important, if it is too large, then we lose the progress we made
-#     gamma = 2/(k+2)
-#     #currently I put k**1.5 because I want to accelerate the computation slightly
-
-#     for i in range(len(edge_list)):
-#         e = edge_list[i]
-#         for flag in ['f_m', 'f_r']:
-#             x_k_e = G[e[0]][e[1]][flag]  # retrieve the flow
-#             # retrieve the flow from the manual assignment
-#             y_k_e = y_k[(e[0], e[1]), flag]
-#             G[e[0]][e[1]][flag] = (1-gamma)*x_k_e+gamma*y_k_e
-
-#     return gamma, Value_Total_Cost(G)
-
-
-# def update_flows(G, y_k, a_k, edge_list):
-
-#     for i in range(len(edge_list)):
-#         e = edge_list[i]
-#         for flag in ['f_m', 'f_r']:
-#             x_k_e = G[e[0]][e[1]][flag]  # retrieve the flow
-#             # retrieve the flow from the manual assignment
-#             y_k_e = y_k[(e[0], e[1]), flag]
-#             G[e[0]][e[1]][flag] = (1-a_k)*x_k_e + a_k * y_k_e
-#     return G
-
-
-# def init_flows(G, OD):
-#     #TODO: deal with conflicting version!!
-#     #Initiliaze the flows, with a feasible solution
-#     #still unclear whether we need to initialize the rebalancers appropriately too
-
-#     #reinitialize the flows to zero
-#     for e in G.edges():
-#         for flag in ['f_r', 'f_m']:
-#             G[e[0]][e[1]][flag] = 0
-
-#     for (o, d) in OD.keys():
-#         path = nx.shortest_path(G, source=o, target=d, weight='cost')
-#         for i in range(len(path)-1):
-#             if d == 'R':
-#                 G[path[i]][path[i+1]]['f_r'] += OD[o, d]
-#             else:
-#                 G[path[i]][path[i+1]]['f_m'] += OD[o, d]
-#     return G

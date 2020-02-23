@@ -8,7 +8,12 @@ from result_analysis import print_balance, plot_ri
 import matplotlib.pyplot as plt
 
 
+
 def main():
+    import matplotlib
+    font = {'size'   : 15, 'weight': 'normal'}
+    matplotlib.rc('font', **font)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", help="path to data directory.",
                         type=str)
@@ -26,7 +31,7 @@ def main():
 
 def plot_balance(path, path_c, shift, save=True):
     path = os.path.join('Data/', path,'outputs', path_c)
-    fig = plt.figure(figsize=(10,10))
+    fig = plt.figure(figsize=(10,8))
     # ax1 = fig.add_subplot(1, 1, 1)
     for f in os.listdir(path):
         print(f)
@@ -47,12 +52,16 @@ def plot_balance(path, path_c, shift, save=True):
         elif os.path.split(path_c)[-1].startswith("no"):
             value=no
             flag='no'
+        elif os.path.split(path_c)[-1].startswith("u"):
+            value=no
+            flag='no'
         else:
             print("The folder does not correspond to an already defined graph to draw")
             return
         # Default values
         with open(os.path.join(path,f), 'rb') as filename:
-            G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list = pickle.load(filename)
+            # G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list, _ = pickle.load(filename)
+            G_FW, OD, ri_FW, n_outer, n_inner, balance = pickle.load(filename)
 
         #Generate balance plot
         balance_norm=np.linalg.norm(balance,axis=1)/np.sqrt(balance.shape[1])
@@ -70,10 +79,10 @@ def plot_balance(path, path_c, shift, save=True):
     for i in range(len(labels)):
         new_labels.append( flag + ': ' + str(labels[i]))
     ax.legend(handles, new_labels)
-    plt.show()
-    # plt.legend()
+    # plt.show()
+    plt.legend()
     if save:
-        plt.savefig(os.path.join(path,'balance.png'))
+        plt.savefig(os.path.join(path,'balance.png'),transparent=True, dpi=400)
     return
 
 def plot_duality_gap(path, path_c):
