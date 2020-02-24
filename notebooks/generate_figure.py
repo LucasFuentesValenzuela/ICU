@@ -52,6 +52,8 @@ def plot_balance(path, path_c, shift, save=True):
         elif os.path.split(path_c)[-1].startswith("no"):
             value=no
             flag='no'
+        elif os.path.split(path_c)[-1].startswith("FW"):
+            flag='FW'
         elif os.path.split(path_c)[-1].startswith("u"):
             value=no
             flag='no'
@@ -60,11 +62,13 @@ def plot_balance(path, path_c, shift, save=True):
             return
         # Default values
         with open(os.path.join(path,f), 'rb') as filename:
-            # G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list, _ = pickle.load(filename)
-            G_FW, OD, ri_FW, n_outer, n_inner, balance = pickle.load(filename)
+            G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list, _, params = pickle.load(filename)
+            # G_FW, OD, ri_FW, n_outer, n_inner, balance = pickle.load(filename)
 
         #Generate balance plot
         balance_norm=np.linalg.norm(balance,axis=1)/np.sqrt(balance.shape[1])
+        if flag == 'FW':
+            value=params['FW_tol']
         plt.plot(np.arange(0,balance_norm.shape[0]-shift,1), balance_norm[shift:], 'o--',label=value)
     plt.grid(True)
     plt.ylabel('Balance norm')
@@ -80,7 +84,7 @@ def plot_balance(path, path_c, shift, save=True):
         new_labels.append( flag + ': ' + str(labels[i]))
     ax.legend(handles, new_labels)
     # plt.show()
-    plt.legend()
+    # plt.legend(handles, new_labels)
     if save:
         plt.savefig(os.path.join(path,'balance.png'),transparent=True, dpi=400)
     return

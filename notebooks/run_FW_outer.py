@@ -5,6 +5,7 @@ import pickle
 import argparse
 from result_analysis import plot_ri, print_balance
 
+#TODO: minimize the amount of data saved when running experiments
 def main():
     """
     Runs the algorithm on the datafiles given as arguments
@@ -29,7 +30,7 @@ def main():
 
     parser.add_argument("-sc", help="Stopping criterion", type=str, default="rp")
 
-    parser.add_argument("-fu", help='Update of the step to avoid overshooting', type=int, default=1)
+    parser.add_argument("-fu", help='Update of the step to avoid overshooting', type=float, default=1.1)
 
     args = parser.parse_args()
     path = os.path.join('Data/',args.p)
@@ -45,10 +46,12 @@ def main():
         evolving_bounds=True
     else:
         evolving_bounds=False
-    if fu==1:
-        fixed_update=True
-    else:
+    if fu==0:
         fixed_update=False
+        update_factor=False
+    else:
+        fixed_update=True
+        update_factor=float(fu)
 
     if not os.path.exists(path):
         print("Path does not exist")
@@ -73,17 +76,34 @@ def main():
     print("     sc: ", stopping_criterion)
     print("     fu: ", fixed_update)
 
+
+    ri_smoothing=False
+    FW_tol=0
+    tol=10**-3
+
     G_0, OD = construct_graph(path, L_rebalancing_edge = L_r)
     edge_list = get_edge_list(G_0)
     G_FW, ri_FW, n_outer, n_inner, balance, opt_res, OD_list, balance_list = solve(
-        G_0.copy(), OD.copy(), edge_list, tol=10**-3, FW_tol=0, 
+        G_0.copy(), OD.copy(), edge_list, tol=tol, FW_tol=FW_tol, 
         max_iter_outer= no, max_iter= ni, evolving_bounds=evolving_bounds,
-        stopping_criterion = stopping_criterion, update=fixed_update,
-        ri_smoothing=False)
-    
+        stopping_criterion = stopping_criterion, update_factor=update_factor,
+        ri_smoothing=ri_smoothing)
+
+
+    params=dict()
+    params['L']=L_r
+    params['ni']=ni
+    params['no']=no
+    params['ev']=evolving_bounds
+    params['sc']=stopping_criterion
+    params['fu']=fixed_update
+    params['ri_smoothing']=ri_smoothing
+    params['update_factor']=update_factor
+    params['FW_tol']=FW_tol
+    params['tol']=tol
+
     #Save the different documents
-    #TODO: save the parameters too!! 
-    to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list, balance_list]
+    to_save=[G_FW, OD, ri_FW, n_outer, n_inner, balance, opt_res, OD_list, balance_list, params]
 
     print('Saving to external .pkl file')
     if not os.path.exists(save_dir):

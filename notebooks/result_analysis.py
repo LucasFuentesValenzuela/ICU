@@ -217,6 +217,79 @@ def plot_stop_and_cost(opt_res, scale='log'):
         axes[i,j].legend()
         ax_2.legend()
 
+
+#####################################################################
+# #
+# for quals
+def plot_stop_and_cost_output(opt_res, path, scale='log', nframes=4):
+    """
+    Plots both the value of the stopping criterion and the total cost
+    Version that saves it to a path and only prints the first x frames
+    """
+    import matplotlib
+    font = {'size'   : 15, 'weight': 'normal'}
+    matplotlib.rc('font', **font)
+
+    nplots=len(opt_res)
+    ncols=2
+    nrows=int(np.ceil(nframes/ncols))
+    _, axes = plt.subplots(nrows, ncols, figsize=(25, 5*nrows))
+    for n in range(nframes):
+        i = int(np.floor(n / ncols))
+        j=n % ncols
+        axes[i,j].plot(opt_res[n]['stop'], label='Stopping criterion', color='b')
+        axes[i,j].set_title('Outer loop # '+ str(n))
+        axes[i,j].set_yscale(scale)
+    #     axes[i,j].set_xscale('log')
+        axes[i,j].grid(True)
+        axes[i,j].set_ylabel('Stopping Criterion')
+        ax_2=axes[i,j].twinx()
+        ax_2.plot(opt_res[n]['obj'], label='Total cost', color='g')
+        ax_2.set_ylabel('Total cost')
+        ax_2.set_yscale(scale)
+        # axes[i,j].set_ylim([10**2,10**8])
+        # axes[i,j].set_xlim([0,100])
+        axes[i,j].legend(loc=1)
+        ax_2.legend(loc=2)
+    plt.savefig(path,transparent=True, dpi=400)
+
+
+def plot_balance_list_output(balance_list, path, nframes=4):
+    """
+    Plots both the value of the stopping criterion and the total cost
+    """
+    import matplotlib
+    font = {'size'   : 15, 'weight': 'normal'}
+    matplotlib.rc('font', **font)
+
+    nplots=len(balance_list)
+    ncols=2
+    nrows=int(np.ceil(nframes/ncols))
+    _, axes = plt.subplots(nrows, ncols, figsize=(25, 5*nrows))
+    for n in range(nframes):
+        i = int(np.floor(n / ncols))
+        j=n % ncols
+        r_p = []
+        for k in range(len(balance_list[n])-1):
+            r_p.append(np.abs(balance_list[n][k]-balance_list[n][k+1])/balance_list[n][k])
+
+        axes[i,j].plot(balance_list[n], label='balance', color='b')
+        axes[i,j].set_title('Outer loop # '+ str(n))
+        # axes[i,j].set_yscale('log')
+    #     axes[i,j].set_xscale('log')
+        axes[i,j].grid(True)
+        axes[i,j].set_ylabel('Balance norm')
+        # axes[i,j].legend()
+        axes[i,j].set_ylim([0, 10])
+        # ax_2=axes[i,j].twinx()
+        # ax_2.plot(r_p, 'g')
+        # ax_2.set_yscale('log')
+        # ax_2.set_ylabel('relative change')
+
+    plt.savefig(path,transparent=True, dpi=400)
+
+#####################################################################
+
 def plot_balance_list(balance_list):
     """
     Plots both the value of the stopping criterion and the total cost
@@ -228,6 +301,10 @@ def plot_balance_list(balance_list):
     for n in range(nplots):
         i = int(np.floor(n / ncols))
         j=n % ncols
+        r_p = []
+        for k in range(len(balance_list[n])-1):
+            r_p.append(np.abs(balance_list[n][k]-balance_list[n][k+1])/balance_list[n][k])
+
         axes[i,j].plot(balance_list[n], label='balance', color='b')
         axes[i,j].set_title('Outer loop # '+ str(n))
         # axes[i,j].set_yscale('log')
@@ -235,8 +312,15 @@ def plot_balance_list(balance_list):
         axes[i,j].grid(True)
         axes[i,j].set_ylabel('balance norm')
         axes[i,j].legend()
+        ax_2=axes[i,j].twinx()
+        ax_2.plot(r_p, 'g')
+        ax_2.set_yscale('log')
+        ax_2.set_ylabel('relative change')
 
-def plot_ri_list(ri_FW):
+def plot_ri_list(ri_FW, save, path):
+    import matplotlib
+    font = {'size'   : 15, 'weight': 'normal'}
+    matplotlib.rc('font', **font)
     r=dict()
     for n in ri_FW[0].keys():
         r[n]=[]
@@ -249,9 +333,32 @@ def plot_ri_list(ri_FW):
     for n in r.keys():
         plt.plot(r[n],'--', label=n)
     plt.grid()
+    # plt.legend()
+    plt.xlabel('Iteration #')
+    plt.ylabel('Rebalancing request per node')
+    
+    if save: 
+        plt.savefig(path, transparent=True, dpi=400)
+
+
+def compare_ri(ri_1, ri_2, node):
+    r1=dict()
+    r2=dict()
+    for n in ri_1[0].keys():
+        r1[n]=[]
+        r2[n]=[]
+        
+    for n in r1.keys():
+        for ri in ri_1:
+            r1[n].append(ri[n])
+        for ri in ri_2:
+            r2[n].append(ri[n])
+
+    plt.figure(figsize=(13,10))
+    plt.plot(r1[node],'--', label='1')
+    plt.plot(r2[node], '--', label='2')
+    plt.grid()
     plt.legend()
-
-
 
 
 def plot_OD(OD_list, o, d):

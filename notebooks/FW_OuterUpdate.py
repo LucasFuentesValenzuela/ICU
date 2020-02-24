@@ -15,7 +15,7 @@ from result_analysis import check_flow_cons_at_OD_nodes
 def solve(
     G_0, OD, edge_list, tol=10**-6, FW_tol=10**-6, max_iter_outer = 50, 
     max_iter=10**3, evolving_bounds=True, 
-    stopping_criterion = 'relative_progress', update=True,
+    stopping_criterion = 'relative_progress', update_factor=1.1,
     ri_smoothing=True):
 
     #Variables to store at each iterations
@@ -41,7 +41,7 @@ def solve(
 
     # FW_tol_k=.1
     FW_tol_k=FW_tol
-
+    smoothing=False
     compute = True
     try:
         while compute:
@@ -57,7 +57,7 @@ def solve(
             G_list, _, opt_res_k, OD_list_k , n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol_k,
                 step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter,
-                stopping_criterion = stopping_criterion, update=update)
+                stopping_criterion = stopping_criterion, update_factor=update_factor)
 
             G_end = G_list[-1]#this is a good choice only if you have monotonous decrease
 
@@ -91,7 +91,11 @@ def solve(
 
             #update the values for the new iteration
             ri_k = ri_new
+
             #some kind of rebalancer smoothing
+            #The idea is the following: if there is not enough progress, we believe
+            #it is because of the rebalancers
+            #therefore we start smoothing out only once there is not enough progress
             #TODO: integrate in the estimate ri_k routine
             r=dict()
             for n in ri_k.keys():
@@ -99,9 +103,17 @@ def solve(
             for n in r.keys():
                 for ri in ri_:
                     r[n].append(ri[n])
-                    ind=np.minimum(4,len(r[n]))
+                    ind=np.minimum(1,len(r[n]))
                     avg_n=np.mean(r[n][-ind:])
-                    beta=2/(i+2)    
+                    if np.linalg.norm(balance_new) > np.linalg.norm(balance_k) and smoothing == False and i>5: #very strong!!
+                        lim_i=i
+                        # smoothing=True
+                    if smoothing==True:
+                        # beta=2/(i+1-lim_i+2)  
+                        beta=.5
+                        # print("ri smoothing on , beta: ", beta)
+                    else:
+                        beta=1
                     ri_k[n]=(beta)*ri_k[n]+(1-beta)*avg_n
             ri_.append(ri_k)
 
@@ -152,7 +164,7 @@ def diff_ri(ri_k, ri_new):
 
 def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     step='fixed', evolving_bounds=False, max_iter=10**3, 
-    stopping_criterion = 'relative_progress', update=True):
+    stopping_criterion = 'relative_progress', update_factor = 1.1):
     #ri_t are the estimate of ri at timestep k
 
     ###########################################
@@ -211,7 +223,10 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
             print("not implemented")
             return
         elif step == 'fixed':
-            a_k = fixed_step(i, y_k, G_k, update=update)
+            if isinstance(update_factor, float):
+                a_k = fixed_step(i, y_k, G_k, update=True, update_factor=update_factor)
+            else:
+                a_k = fixed_step(i, y_k, G_k, update=False)
         else:
             print("wrong optim step chosen")
             return
@@ -242,10 +257,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
             opt_res['stop'].append(rel_progress)
             if len(opt_res['stop'])>n_rolling and np.mean(opt_res['stop'][-n_rolling:]) < FW_tol:
                 compute = False
-                if rel_progress < FW_tol:
-                    print("     Number of inner loop iterations: ", i)
-                    print("     FW solved to tol")
-                    continue
+                print("     Number of inner loop iterations: ", i)
+                print("     FW solved to tol")
             elif i >= max_iter:
                 compute=False
                 print("    Max inner iterations reached")
