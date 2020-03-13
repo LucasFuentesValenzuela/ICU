@@ -42,9 +42,9 @@ def Value_Total_Cost(G):
         if k < 10**-5:  # you eliminate the edges that are considered non-usable
             G[e[0]][e[1]]['tot_cost']=np.nan
             continue
-        if e[1] == 'R':  # not including the cost of edges 1R and 2R might make sense, as we want to rebalance whatever happens
+        # if e[1] == 'R':  # not including the cost of edges 1R and 2R might make sense, as we want to rebalance whatever happens
             # continue
-            pass #not sure we have to cancel it in the end
+            # pass #not sure we have to cancel it in the end
 
         # I am assuming there will be syntaxic problems there
         cost_edge += BPR_int_val(phi, x_k_e_m + x_k_e_r, k)

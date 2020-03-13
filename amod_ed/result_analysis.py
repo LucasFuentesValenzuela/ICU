@@ -214,7 +214,7 @@ def plot_stop_and_cost(opt_res, scale='log'):
         ax_2.plot(opt_res[n]['obj'], label='Total cost', color='g')
         ax_2.set_ylabel('total cost')
         ax_2.set_yscale(scale)
-        # ax_2.set_yticks([np.min(opt_res[n]['obj']), np.max(opt_res[n]['obj'])])
+        ax_2.set_yticks([np.min(opt_res[n]['obj']), np.max(opt_res[n]['obj'])])
         # axes[i,j].set_ylim([10**2,10**8])
         # axes[i,j].set_xlim([0,100])
         axes[i,j].legend()

@@ -1,73 +1,75 @@
-#all the elements necessary to build the graph
-#essentially to perform appropriate graph expansion
+# all the elements necessary to build the graph
+# essentially to perform appropriate graph expansion
 import os
 import numpy as np
 import pandas as pd
-from helpers_icu import phi
 import networkx as nx
-from routines_icu import update_costs
-from FW_OuterUpdate import init_flows
+from amod_ed.routines_icu import update_costs
+from amod_ed.helpers_icu import phi
+from amod_ed.flows_init import initialize_flows
 
 
-
-#The below version will build simple graphs but large
+# The below version will build simple graphs but large
 def generate_random_graph(n_nodes, n_OD_pairs, path):
 
     if not os.path.exists(path):
         os.makedirs(path)
-    
-    edge_list=[]
-    for n in range(1, n_nodes):
-        o=np.random.randint(low=0,high=n)
-        d=n
-        edge_list.append([o,d])
-        edge_list.append([d,o])
 
-    #generate edge file
-    edges=pd.DataFrame(columns=['head','tail','length','capacity','time','isnegative','shift'])
+    edge_list = []
+    for n in range(1, n_nodes):
+        o = np.random.randint(low=0, high=n)
+        d = n
+        edge_list.append([o, d])
+        edge_list.append([d, o])
+
+    # generate edge file
+    edges = pd.DataFrame(
+        columns=['head', 'tail', 'length', 'capacity', 'time', 'isnegative', 'shift'])
     for e in edge_list:
-        L=10
-        k=10
-        t=10
+        L = 10
+        k = 10
+        t = 10
         data = np.array([[str(e[0]), str(e[1]), L, k, t, 0, 0]])
         l = pd.DataFrame(columns=edges.columns, data=data)
-        edges = edges.append(l, ignore_index=True) 
+        edges = edges.append(l, ignore_index=True)
 
-    o_list=np.unique(edges['head'].values.flatten())
-    d_list=np.unique(edges['tail'].values.flatten())
+    o_list = np.unique(edges['head'].values.flatten())
+    d_list = np.unique(edges['tail'].values.flatten())
 
-    OD_list=[]
+    OD_list = []
     for n in range(n_OD_pairs):
-        draw=True
+        draw = True
         while draw:
-            o=np.random.choice(o_list)
-            d=np.random.choice(d_list)
-            pair=[o,d]
+            o = np.random.choice(o_list)
+            d = np.random.choice(d_list)
+            pair = [o, d]
             if pair not in OD_list:
-                draw=False
+                draw = False
         OD_list.append(pair)
 
-    #generate OD file
-    OD=pd.DataFrame(columns=['origin','destination','demand','length','capacity','time','isnegative','shift'])
+    # generate OD file
+    OD = pd.DataFrame(columns=['origin', 'destination', 'demand',
+                               'length', 'capacity', 'time', 'isnegative', 'shift'])
     from helpers_icu import phi
     for od in OD_list:
-        demand=10
-        L=10
-        k=3
-        t=10
-        
-        #those limits are important and depend on the connectivity of the graph
-        #we need a better way of computing them
-        shift_low=phi(L,t)*n_nodes/10
-        shift_high=10*shift_low
-        shift=np.random.randint(high=shift_high,low=shift_low)
+        demand = 10
+        L = 10
+        k = 3
+        t = 10
+
+        # those limits are important and depend on the connectivity of the graph
+        # we need a better way of computing them
+        shift_low = phi(L, t)*n_nodes/10
+        shift_high = 10*shift_low
+        shift = np.random.randint(high=shift_high, low=shift_low)
         data = np.array([[str(od[0]), str(od[1]), demand, L, k, t, 1, shift]])
         l = pd.DataFrame(columns=OD.columns, data=data)
-        OD = OD.append(l, ignore_index=True) 
+        OD = OD.append(l, ignore_index=True)
 
-    edges.to_excel(os.path.join(path,'edges.xlsx'), index=False)
-    OD.to_excel(os.path.join(path,'OD.xlsx'), index=False)
+    edges.to_excel(os.path.join(path, 'edges.xlsx'), index=False)
+    OD.to_excel(os.path.join(path, 'OD.xlsx'), index=False)
     return edges, OD
+
 
 def construct_graph(path, L_rebalancing_edge=10000):
 
@@ -75,7 +77,7 @@ def construct_graph(path, L_rebalancing_edge=10000):
     G = init_graph(edges)
     G = initEdgeAttr(G, edges)
     G = initNodeAttr(G, edges)
-    G = init_flows(G, OD)  # check which version to consolidate
+    G = initialize_flows(G, None, None, OD)
     G = update_costs(G)
 
     return G, OD
@@ -83,13 +85,13 @@ def construct_graph(path, L_rebalancing_edge=10000):
 
 def init_graph(edges):
 
-    #extract all nodes from the file, after expansion
+    # extract all nodes from the file, after expansion
     nodes_list = np.unique(edges['head'].tolist()+edges['tail'].tolist())
-    #extract all the edges from the file, after expansion
+    # extract all the edges from the file, after expansion
     edge_list = []
     for i in range(edges.shape[0]):
         edge_list.append((edges.loc[i, 'head'], edges.loc[i, 'tail']))
-    #initialize the graph
+    # initialize the graph
     G = nx.DiGraph()
     G.add_nodes_from(nodes_list)
     G.add_edges_from(edge_list)
@@ -99,11 +101,11 @@ def init_graph(edges):
 
 def expand_graph(path, L_rebalancing_edge=10000):
 
-    #read external Excel files containing the data
+    # read external Excel files containing the data
     edges = pd.read_excel(os.path.join(path, 'edges.xlsx'))
     OD_xl = pd.read_excel(os.path.join(path, 'OD.xlsx'))
 
-    #convert into strings for the first two columns
+    # convert into strings for the first two columns
     for i in range(edges.shape[0]):
         for col in ['head', 'tail']:
             edges.loc[i, col] = str(edges.loc[i, col])
@@ -115,8 +117,8 @@ def expand_graph(path, L_rebalancing_edge=10000):
 
     #######################################
     # 1 . Add rebalancing edge
-    #TODO: has to be adapted as a function of the size of the graph (phi, therefore L/t)
-    #what really matters is the value of phi
+    # TODO: has to be adapted as a function of the size of the graph (phi, therefore L/t)
+    # what really matters is the value of phi
     L_rebalancing_edge = L_rebalancing_edge
     t_rebalancing_edge = 1
     k_rebalancing_edge = 1  # does not matter as it should be adapted accordingly
@@ -132,7 +134,7 @@ def expand_graph(path, L_rebalancing_edge=10000):
 
     OD = dict()
     for i in range(OD_xl.shape[0]):
-        #we add one dummy destination node per origin
+        # we add one dummy destination node per origin
         o = str(OD_xl.loc[i, 'origin'])
         d = str(OD_xl.loc[i, 'destination'])
         demand = OD_xl.loc[i, 'demand']
@@ -151,7 +153,7 @@ def expand_graph(path, L_rebalancing_edge=10000):
     #######################################
     # 3. Add zero-cost edge
 
-    #what really matters is the value of phi (0)
+    # what really matters is the value of phi (0)
     L_ZC = 0
     t_ZC = 1
     k_ZC = 1
@@ -160,14 +162,14 @@ def expand_graph(path, L_rebalancing_edge=10000):
         l = pd.DataFrame(columns=edges.columns, data=data)
         edges = edges.append(l, ignore_index=True)
 
-    #make sure we have floats and no strings for the numbers
+    # make sure we have floats and no strings for the numbers
     edges.iloc[:, 2:] = edges.iloc[:, 2:].astype(float)
     return edges, OD  # , dummy_nodes # I am not sure we actually need the dummy_node construct
 
 
 def initEdgeAttr(G, edges):
 
-    #initEdgeAttributes using a DataFrame
+    # initEdgeAttributes using a DataFrame
 
     for i in range(edges.shape[0]):
         e = (edges.loc[i, 'head'], edges.loc[i, 'tail'])
