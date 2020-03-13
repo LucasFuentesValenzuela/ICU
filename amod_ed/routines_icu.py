@@ -50,9 +50,11 @@ def estimate_ri_k(G, ri_smoothing, a_k, ri_prev):
             ri_k[e[0]] += G[e[0]][e[1]]['f_m']#Add to the origin node
             ri_k[e[1]] -= G[e[0]][e[1]]['f_m']#Substract from the destination node
 
-    for n in ri_k.keys():
-        if n!='R' and ri_k[n]>0: #node in deficit
-            ri_k['R']+=ri_k[n]
+    #We wanted to include the fact that the rebalancing node is actually also a endpoint of rebalancers
+    #But we are doing it by including additional constrains in the matrices now
+    # for n in ri_k.keys():
+        # if n!='R' and ri_k[n]>0: #node in deficit
+            # ri_k['R']+=ri_k[n]
 
     for n in G.nodes():
         if ri_prev==[]:

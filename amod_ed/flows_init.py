@@ -28,13 +28,16 @@ def initialize_flows(G, G_prev, ri_k, OD):
 def initialize_rebalancers(G, G_prev, ri_k):
 
     r_i, nodes_list = _get_rebalancing_vector(ri_k)
-    f_r, edge_list = _get_rebalancing_flows(G_prev)
-    print("ri: ", ri_k)
-    print("nodes: ", nodes_list)
-    print("edges: ", edge_list)
+    f_r, edge_list = _get_rebalancing_flows(G, G_prev)
     # here we have G as it is updated with capacities
-    A = _get_matrix(G, edge_list, nodes_list)
+    A = _get_matrix(G, r_i, edge_list, nodes_list)
     f_init_r = _compute_nearest_feasible(f_r, r_i, A, norm=2)
+    # # print("edge list: ", edge_list)
+    # # print("f_r: ", f_r)
+    # # print("f_init: ", f_init_r)
+    # # print("ri: ", r_i)
+    # # print("A: ")
+    # print(A)
     G = introduce_rebalancers(G, f_init_r, edge_list)
 
     return G
@@ -58,29 +61,44 @@ def _get_rebalancing_vector(ri_k):
         r_i < 0 if node i in excess of rebalancers
         r_i > 0 if node i in deficit of rebalancers
     """
-    r_i = np.zeros((len(ri_k.keys(),)))
+    r_i=[]
+    nodes_list_all = list(ri_k.keys())
+    nodes_list=[]
+    for i in range(len(nodes_list_all)):
+        n=nodes_list_all[i]
 
-    nodes_list = list(ri_k.keys())
-    for i in range(len(ri_k.keys())):
-        n = nodes_list[i]
-        r_i[i] = ri_k[n]
+        if n.endswith('_p'): #This is a "dummy node"
+            continue
+        #we only keep the nodes that are actually in the graph + the rebalancing node
 
-    return r_i, nodes_list
+        nodes_list.append(n)
+        r_i.append(ri_k[n])
+
+    return np.array(r_i), nodes_list #now nodes_list is only the nodes that we keep
 
 
-def _get_rebalancing_flows(G_prev):
+def _get_rebalancing_flows(G, G_prev):
     """
     Extract the rebalancing flows to compute the initialization
     """
-    edge_list = list(G_prev.edges())
-    f_r = np.zeros((len(edge_list),))
-    for i in range(len(edge_list)):
-        e = edge_list[i]
-        f_r[i] = G_prev[e[0]][e[1]]['f_r']
-    return f_r, edge_list
+    eps=10**-5
+    edge_list_all = list(G_prev.edges())
+    f_r = [] 
+    edge_list = []
+    for i in range(len(edge_list_all)):
+        e = edge_list_all[i]
+
+        if e[1].endswith('_p'): #this is a dummy edge
+            continue
+        if G[e[0]][e[1]]['k']<eps and e[1]=='R':#this edge is "deactivated" 
+            continue
+
+        edge_list.append(e)
+        f_r.append(G_prev[e[0]][e[1]]['f_r'])
+    return np.array(f_r), edge_list
 
 
-def _get_matrix(G, edge_list, nodes_list):
+def _get_matrix(G, r_i, edge_list, nodes_list):
     """
     Extract the out matrix from the graph to compute initialization. 
 
@@ -94,22 +112,33 @@ def _get_matrix(G, edge_list, nodes_list):
     A_out = np.zeros((n_nodes, n_edges))
     A_in = np.zeros((n_nodes, n_edges))
 
+    idx_R = nodes_list.index('R')
     for i in range(len(nodes_list)):
         for j in range(len(edge_list)):
-            e = edge_list[j]
             n = nodes_list[i]
+            e = edge_list[j]
+
             # we want to avoid keeping those edges as a possibility
             # TODO: make sure the edge capacities are well updated before updating the flows!!
-            if G[e[0]][e[1]]['k'] < eps:  # make sure this makes sense
+            if G[e[0]][e[1]]['k'] < eps and e[1]=='R':  # equivalent to saying that the node is in excess of rebalancers, ie ri<0
                 continue
-            if n == e[0]:  # n is origin
+
+            if n == e[0] and e[1]!='R':  # n is origin and is a graph edge
                 A_out[i, j] = 1
             elif n == e[1]:  # n is destination
                 A_in[i, j] = 1
 
-    print("A in: ", A_in)
-    print("A out: ", A_out)
-    return A_in-A_out
+    A = A_in - A_out
+
+    for i in range(len(nodes_list)):
+        # n = nodes_list[i]
+        if r_i[i] > eps: 
+            A[idx_R, :] = A[idx_R, :] - A[i,:]
+
+    # print("A in: ", A_in)
+    # print("A out: ", A_out)
+    # print("A: ", A)
+    return A
 
 
 def _compute_nearest_feasible(f_r, r_i, A, norm=2):
