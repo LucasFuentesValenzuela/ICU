@@ -293,7 +293,7 @@ def plot_balance_list_output(balance_list, path, nframes=4):
 
 #####################################################################
 
-def plot_balance_list(balance_list, b_scale='linear'):
+def plot_balance_list(balance_list, b_scale='linear', progress = False):
     """
     Plots both the value of the stopping criterion and the total cost
     """
@@ -308,7 +308,7 @@ def plot_balance_list(balance_list, b_scale='linear'):
         for k in range(len(balance_list[n])-1):
             r_p.append(np.abs(balance_list[n][k]-balance_list[n][k+1])/balance_list[n][k])
 
-        axes[i,j].plot(balance_list[n], label='balance', color='b')
+        axes[i,j].plot(balance_list[n][1:], label='balance', color='b')#we put [1:] because want not to show drop in the beginning: TODO: understand fully and explain
         axes[i,j].set_title('Outer loop # '+ str(n))
         # axes[i,j].set_yscale('log')
     #     axes[i,j].set_xscale('log')
@@ -316,10 +316,11 @@ def plot_balance_list(balance_list, b_scale='linear'):
         axes[i,j].set_ylabel('balance norm')
         axes[i,j].legend()
         axes[i,j].set_yscale(b_scale)
-        ax_2=axes[i,j].twinx()
-        ax_2.plot(r_p, 'g')
-        ax_2.set_yscale('log')
-        ax_2.set_ylabel('relative change')
+        if progress: 
+            ax_2=axes[i,j].twinx()
+            ax_2.plot(r_p, 'g')
+            ax_2.set_yscale('log')
+            ax_2.set_ylabel('relative change')
 
 def plot_ri_list(ri_FW, save = False, path = None):
     import matplotlib
@@ -686,7 +687,7 @@ def check_flow_cons(G, OD):
 
 def check_flow_cons_at_OD_nodes(G,OD):
     """
-    Compute the flow balance only at nodes that below to OD. 
+    Compute the flow balance only at nodes that belong to OD. 
     """
     net_flow,l=check_flow_cons(G,OD)
     # print("net flows")

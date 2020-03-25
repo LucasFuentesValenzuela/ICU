@@ -48,14 +48,25 @@ def solve(
     FW_tol_k = FW_tol
     smoothing = False
     compute = True
+
+    #True when we reached a stage where we want to keep the previous value of the step
+    #useful only if we use fixed step
+    continuous_step = False
+    i_offset = 0
+
     try:
         while compute:
+            #below: condition to check unstuck balance, what happens if we initiliaze differently
             # if i >10:
                 # max_iter = 10*10**3
+            if i >10:
+                continuous_step = True
+
             print("##########################################")
             print("ITERATION #: ", i)
             print("Current FW tol: ", FW_tol_k)
             print("Current max ni: ", max_iter)
+            print("i_offset : ", i_offset)
             # print(ri_k)
 
             # TODO: maybe you do not have to go all the way in the computation
@@ -66,7 +77,7 @@ def solve(
             G_list, _, opt_res_k, OD_list_k, n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol=FW_tol_k,
                 step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter,
-                stopping_criterion=stopping_criterion, update_factor=update_factor)
+                stopping_criterion=stopping_criterion, update_factor=update_factor, i_offset = i_offset)
 
             # this is a good choice only if you have monotonous decrease
             G_end = G_list[-1].copy()
@@ -145,7 +156,9 @@ def solve(
             balance_list.append(balance_)
 
             FW_tol_k = np.maximum(FW_tol, FW_tol_k/2)
-
+            if continuous_step: 
+                i_offset+=n_iter
+                i_offset = i_offset ** 1.5
             i += 1
     except KeyboardInterrupt:
         print("Program interrupted by user -- Current data saved")
@@ -173,7 +186,7 @@ def diff_ri(ri_k, ri_new):
 
 def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
                        step='fixed', evolving_bounds=False, max_iter=10**3,
-                       stopping_criterion='relative_progress', update_factor=1.1):
+                       stopping_criterion='relative_progress', update_factor=1.1, i_offset = 0):
     # ri_t are the estimate of ri at timestep k
 
     ###########################################
@@ -192,6 +205,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
 
     a_k = 1
     i = 1
+
 
     compute = True
 
@@ -220,7 +234,13 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     ###################################
 
     while compute:
+        i_step = i + i_offset
+
         # TODO: figure out what the best order between assignment and stopping criterion is
+        balance_new = check_flow_cons_at_OD_nodes(G_k.copy(), OD)
+        balance_norm = np.linalg.norm(
+            balance_new)/np.sqrt(balance_new.shape[0])
+        balance_list.append(balance_norm)
         ############################################
         # ASSIGNMENT
         ############################################
@@ -237,7 +257,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
                 a_k = fixed_step(i, y_k, G_k, update=True,
                                  update_factor=update_factor)
             else:
-                a_k = fixed_step(i, y_k, G_k, update=False)
+                a_k = fixed_step(i_step, y_k, G_k, update=False)
         else:
             print("wrong optim step chosen")
             return
@@ -287,10 +307,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         # print("#####j########")
         # print("iteration #: ", i)
         # recompute
-        balance_new = check_flow_cons_at_OD_nodes(G_k.copy(), OD)
-        balance_norm = np.linalg.norm(
-            balance_new)/np.sqrt(balance_new.shape[0])
-        balance_list.append(balance_norm)
+        
         # save for analyses
         obj_k, G_k = Value_Total_Cost(G_k.copy())
         opt_res['obj'].append(obj_k)
