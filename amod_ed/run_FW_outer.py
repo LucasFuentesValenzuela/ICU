@@ -10,6 +10,7 @@ DATA_PATH = '/Users/lucasfuentes/ASL/ICU/notebooks/Data'
 
 
 # TODO: minimize the amount of data saved when running experiments
+# TODO: allow choosing line search / fixed
 def main():
     """
     Runs the algorithm on the datafiles given as arguments
@@ -82,7 +83,7 @@ def main():
     print("     fu: ", fixed_update)
 
     ri_smoothing = False
-    FW_tol = 0 
+    FW_tol = 0
     tol = 0
 
     G_0, OD = construct_graph(path, L_rebalancing_edge=L_r)

@@ -2,7 +2,7 @@
 from amod_ed.helpers_icu import BPR, BPR_int
 import numpy as np
 import networkx as nx
-
+import cvxpy as cp
 
 #sign not necessary (think about what is actually D-1 and about the fact that it has a negative sign in front)
 def update_costs(G):
@@ -212,9 +212,6 @@ def fixed_step(k, y_k, G_k, update=True, update_factor=1.1):
 
 
 def update_flows(G, y_k, a_k, edge_list, solver='Outer'):
-    #TODO: understand why the balance drops abruptly to near zero when reaching the last inner iteration
-    #this is the case for ni = 50, 100, 1000, 5000,. ... and every time the value of the balance
-    #drops to 10**-15, kind of magically, as if the last update was always perfect. 
     """
     We want to update the flows differently depending on using the ICU or the outer loop solver. 
     Why? Simply because in the ICU we do not use the rebalancing update for what we are doing. 
@@ -240,3 +237,99 @@ def update_flows(G, y_k, a_k, edge_list, solver='Outer'):
                 # print("in update flows")
                 # print(x_k_e, y_k_e, flag, (1-a_k) * x_k_e, a_k * y_k_e, G[e[0]][e[1]][flag])
     return G
+
+
+##################################################
+#
+# Line Search
+# 
+##################################################
+
+
+# it is supposed to be super easy to code... Supposed to work 
+# directly... I don't understand. 
+#
+# We do not see the behavior we expect -- therefore there is issues
+# in implementation
+
+# Do not forget: 
+#   - you are solving for a fixed value of rebanlancers, with a fixed OD list
+#   - therefore, you should have steady decrease. NO QUESTION. So if it does not work
+#            - either your solver is not good
+#            - or you are not solving the same problem everytime... 
+#            - This seems weird
+#
+# Also, it is not a problem of updating the total cost (I checked that they both corresponded). 
+
+
+def line_search(G, y_k, edge_list):
+
+    a_k = cp.Variable()
+
+    constraints = [a_k >= 0, a_k <= 1]
+    obj = Total_Cost_line_search(G, y_k, a_k, edge_list)
+    # print(obj)
+    prob = cp.Problem(cp.Minimize(obj), constraints)
+    prob.solve(solver = cp.ECOS, verbose=False)
+    # prob.solve(solver = cp.MOSEK, verbose=False)
+    print("Status of line search problem : ", prob.status)
+
+    # try:
+    #     obj_val = obj.value
+    # except:
+    #     obj_val = 0
+    # print(obj.value)
+    print(a_k.value)
+    return a_k.value
+
+def Total_Cost_line_search(G, y_k, a_k, edge_list):
+
+    F_E = 0
+
+    for e in edge_list:  # you know for sure exactly what edge it is for
+
+        cost_edge=0
+        x_k_e_m = G[e[0]][e[1]]['f_m']
+        x_k_e_r = G[e[0]][e[1]]['f_r']
+        flow_x = x_k_e_m + x_k_e_r
+
+        y_k_e_m = y_k[(e[0], e[1]), 'f_m'] 
+        y_k_e_r = y_k[(e[0], e[1]), 'f_r'] 
+        flow_y = y_k_e_m + y_k_e_r
+
+        delta = flow_y - flow_x
+        #guard against instabilities: 
+        if np.abs(flow_x)<10**-5:
+            flow_x = 0
+        if np.abs(delta)<10**-5:
+             delta = 0
+
+        flow_tmp = flow_x +a_k*delta
+        # print(flow_tmp)
+
+        #TODO: not sure this is useful
+        #retrieve parameters to compute the BPR
+        phi = G[e[0]][e[1]]['phi']
+        k = G[e[0]][e[1]]['k']
+
+        if k < 10**-5:  # you eliminate the edges that are considered non-usable
+            continue
+        # if e[1] == 'R': 
+            # continue
+
+        # I am assuming there will be syntaxic problems there
+        cost_edge += BPR_int(phi, flow_tmp, k, beta = 4)
+
+        #this has to be included because it is directly included in the definition of the cost function
+        if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
+            cost_edge -= (flow_tmp)*G[e[0]][e[1]]['shift']  # INVERSE_DEMAND_SHIFT
+
+        # not entirely sure this needs to be here
+        if 'pot' in G.nodes[e[1]]:
+            cost_edge += G.nodes[e[1]]['pot']*(flow_tmp)
+
+        F_E += cost_edge
+
+        # print("EDGE: ", e)
+        # print("Cost: ", cost_edge)
+    return F_E

@@ -5,7 +5,7 @@ import numpy as np
 # import cvxpy as cp
 import networkx as nx
 from amod_ed.helpers_icu import Value_Total_Cost
-from amod_ed.routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k, update_flows, fixed_step
+from amod_ed.routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k, update_flows, fixed_step, line_search
 from amod_ed.result_analysis import check_flow_cons_at_OD_nodes
 from amod_ed.flows_init import initialize_flows
 
@@ -76,7 +76,7 @@ def solve(
 
             G_list, _, opt_res_k, OD_list_k, n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol=FW_tol_k,
-                step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter,
+                step='line_search', evolving_bounds=evolving_bounds, max_iter=max_iter,
                 stopping_criterion=stopping_criterion, update_factor=update_factor, i_offset = i_offset)
 
             # this is a good choice only if you have monotonous decrease
@@ -247,11 +247,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         # perform AON assignment
         y_k = AoN(G_k.copy(), OD)
 
-        # TODO: enable line search
         if step == 'line_search':
-            # a_k,obj_k=line_search(G_crt,y_k,edge_list)#include the fixed step size,
-            print("not implemented")
-            return
+            a_k=line_search(G_k,y_k,edge_list)
         elif step == 'fixed':
             if isinstance(update_factor, float):
                 a_k = fixed_step(i, y_k, G_k, update=True,
@@ -265,6 +262,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         ######################################
         # Stopping criterion
         #######################################
+        # TODO: wrap in external function
         n_rolling = 5
 
         if stopping_criterion == 'duality_gap' and i > 1:
@@ -307,7 +305,6 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         # print("#####j########")
         # print("iteration #: ", i)
         # recompute
-        
         # save for analyses
         obj_k, G_k = Value_Total_Cost(G_k.copy())
         opt_res['obj'].append(obj_k)
