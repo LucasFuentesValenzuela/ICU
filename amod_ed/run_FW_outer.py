@@ -11,6 +11,7 @@ DATA_PATH = '/Users/lucasfuentes/ASL/ICU/notebooks/Data'
 
 # TODO: minimize the amount of data saved when running experiments
 # TODO: allow choosing line search / fixed
+
 def main():
     """
     Runs the algorithm on the datafiles given as arguments

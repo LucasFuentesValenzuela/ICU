@@ -2,16 +2,18 @@
 # problem with rebalancers with graph extension, with Elastic Demand too
 
 import numpy as np
-# import cvxpy as cp
 import networkx as nx
 from amod_ed.helpers_icu import Value_Total_Cost
 from amod_ed.routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k, update_flows, fixed_step, line_search
-from amod_ed.result_analysis import check_flow_cons_at_OD_nodes
+from amod_ed.routines_icu import check_flow_cons_at_OD_nodes
 from amod_ed.flows_init import initialize_flows
 
 # TODO: think about the evolving bounds and the rebalancing smoothing
 # TODO: update stopping criterion (should be based on balance norm I think)
 # TODO: check duality gap
+# TODO: make line search work
+# TODO: make what we save consistent (same length, etc.)
+# TODO: decide what to do with evolving tol
 
 
 def solve(
@@ -46,20 +48,19 @@ def solve(
     G_prev = None
     # FW_tol_k=.1
     FW_tol_k = FW_tol
-    smoothing = False
     compute = True
 
-    #True when we reached a stage where we want to keep the previous value of the step
-    #useful only if we use fixed step
+    # True when we reached a stage where we want to keep the previous value of the step
+    # useful only if we use fixed step
+    # TODO: implement that when using fixed step.
     continuous_step = False
     i_offset = 0
 
     try:
         while compute:
-            #below: condition to check unstuck balance, what happens if we initiliaze differently
-            # if i >10:
-                # max_iter = 10*10**3
-            if i >10:
+
+            # TODO: make this the standard
+            if i > 10:
                 continuous_step = True
 
             print("##########################################")
@@ -67,127 +68,77 @@ def solve(
             print("Current FW tol: ", FW_tol_k)
             print("Current max ni: ", max_iter)
             print("i_offset : ", i_offset)
-            # print(ri_k)
-
-            # TODO: maybe you do not have to go all the way in the computation
-            # maybe you can introduce a decreasing tolerance over the different problems
-            # like start with tol=1 and then divide it by two at every step
-            # currently this is dealt with by a max iter number
 
             G_list, _, opt_res_k, OD_list_k, n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol=FW_tol_k,
                 step='line_search', evolving_bounds=evolving_bounds, max_iter=max_iter,
-                stopping_criterion=stopping_criterion, update_factor=update_factor, i_offset = i_offset)
+                stopping_criterion=stopping_criterion, update_factor=update_factor, i_offset=i_offset)
 
             # this is a good choice only if you have monotonous decrease
             G_end = G_list[-1].copy()
 
-            # estimate #ri_k, update OD, assign, update costs
             ri_new, G_end = estimate_ri_k(
                 G_end.copy(), ri_smoothing=ri_smoothing, a_k=1/2, ri_prev=ri_k)
 
             balance_new = check_flow_cons_at_OD_nodes(G_end.copy(), OD)
             balance_norm = np.linalg.norm(balance_new)
-            diff_balance = np.linalg.norm(balance_new-balance_k)
 
-            # TODO: New stopping criterion
-            # Now based on the balance
-            # We might still get stuck on an local optimum?
-            # Hence, maybe include a condition on the actual norm of the balance vector
-            # TODO:  for instance np.linalg.norm(balance_k)<eps
+            # previous criterion based on the difference of balanced
+            # diff_balance = np.linalg.norm(balance_new-balance_k)
 
-            # TODO: make sure we do not have to check that across ALL nodes
-            # if diff_ri(ri_k, ri_new) < tol or i>=max_iter_outer:
-            #     compute=False
-
-            if diff_balance < tol:
+            if balance_norm < tol:
                 compute = False
-                print("The balance vector has reached a stationary point")
+                print("The balance vector has reached the tol.")
             elif i >= max_iter_outer:
                 compute = False
                 print("Maximum number of outer iterations reached")
 
-            # update the values for the new iteration
             ri_k = ri_new
 
-            # some kind of rebalancer smoothing
-            # The idea is the following: if there is not enough progress, we believe
-            # it is because of the rebalancers
-            # therefore we start smoothing out only once there is not enough progress
-            # TODO: integrate in the estimate ri_k routine
-            r = dict()
-            for n in ri_k.keys():
-                r[n] = []
-            for n in r.keys():
-                for ri in ri_:
-                    r[n].append(ri[n])
-                    ind = np.minimum(1, len(r[n]))
-                    avg_n = np.mean(r[n][-ind:])
-                    # very strong!!
-                    if np.linalg.norm(balance_new) > np.linalg.norm(balance_k) and smoothing == False and i > 5:
-                        lim_i = i
-                        # smoothing=True
-                    if smoothing == True:
-                        # beta=2/(i+1-lim_i+2)
-                        beta = .5
-                        # print("ri smoothing on , beta: ", beta)
-                    else:
-                        beta = 1
-                    ri_k[n] = (beta)*ri_k[n]+(1-beta)*avg_n
-            ri_.append(ri_k)
-
-            # TODO: does it work if you actually keep the last version of G (as you solved it? )
             G_k = G_end.copy()
             balance_k = balance_new
 
-            # the below might be completely wrong
-            # indeed, OD is not complete here as it does not contain the rebalancing
-            # therefore, surely it is smaller than the actual OD in the dataset
             print("Balance norm at the end of iteration: ",
                   np.around(balance_norm, 2))
 
             # Save the different variables
             G_.append(G_list)
-
             balance.append(balance_k)
             opt_res_.append(opt_res_k)
             n_iter_tot.append(n_iter)
             OD_list.append(OD_list_k)
             balance_list.append(balance_)
+            ri_.append(ri_k)
 
-            FW_tol_k = np.maximum(FW_tol, FW_tol_k/2)
-            if continuous_step: 
-                i_offset+=n_iter
+            # TODO: if you want to do evolving tol
+            # FW_tol_k = np.maximum(FW_tol, FW_tol_k/2)
+
+            # TODO: implement this for real
+            if continuous_step:
+                i_offset += n_iter
                 i_offset = i_offset ** 1.5
             i += 1
     except KeyboardInterrupt:
         print("Program interrupted by user -- Current data saved")
         return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list, balance_list
 
-    """
-    Returns: 
-    G_ : list of graphs
-    ri_: list of dict()
-    i: number of outer loop iterations, i.e. of ri update
-    n_iter_tot: total number of iterations in the FW
-    """
     return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list, balance_list
 
+# TODO: DISCARD
+# def diff_ri(ri_k, ri_new):
 
-def diff_ri(ri_k, ri_new):
+#     diff = []
 
-    diff = []
-
-    for n in ri_k.keys():
-        diff.append(ri_k[n]-ri_new[n])
-    diff = np.asarray(diff)
-    return np.linalg.norm(diff)
+#     for n in ri_k.keys():
+#         diff.append(ri_k[n]-ri_new[n])
+#     diff = np.asarray(diff)
+#     return np.linalg.norm(diff)
 
 
 def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
                        step='fixed', evolving_bounds=False, max_iter=10**3,
-                       stopping_criterion='relative_progress', update_factor=1.1, i_offset = 0):
-    # ri_t are the estimate of ri at timestep k
+                       stopping_criterion='relative_progress',
+                       update_factor=1.1, i_offset=0):
 
     ###########################################
     # PARAMETERS
@@ -206,7 +157,6 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     a_k = 1
     i = 1
 
-
     compute = True
 
     #################################
@@ -222,7 +172,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     # Reinitialize
     ###################################
 
-    G_k = initialize_flows(G_k, G_0, ri_k, OD)#replace None by G_0 if want proper init
+    # replace None by G_0 if want proper init
+    G_k = initialize_flows(G_k, G_0, ri_k, OD)
     G_k = update_costs(G_k)
 
     obj_k, G_k = Value_Total_Cost(G_k)
@@ -236,20 +187,23 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     while compute:
         i_step = i + i_offset
 
-        # TODO: figure out what the best order between assignment and stopping criterion is
+        # compute the balance
         balance_new = check_flow_cons_at_OD_nodes(G_k.copy(), OD)
         balance_norm = np.linalg.norm(
             balance_new)/np.sqrt(balance_new.shape[0])
         balance_list.append(balance_norm)
+
         ############################################
         # ASSIGNMENT
         ############################################
-        # perform AON assignment
         y_k = AoN(G_k.copy(), OD)
 
         if step == 'line_search':
-            a_k=line_search(G_k,y_k,edge_list)
+            # TODO: make this work
+            a_k = line_search(G_k, y_k, edge_list)
+
         elif step == 'fixed':
+            # TODO: decide whether to scrap the update factor
             if isinstance(update_factor, float):
                 a_k = fixed_step(i, y_k, G_k, update=True,
                                  update_factor=update_factor)
@@ -262,37 +216,12 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         ######################################
         # Stopping criterion
         #######################################
-        # TODO: wrap in external function
-        n_rolling = 5
-
-        if stopping_criterion == 'duality_gap' and i > 1:
-            # compute the duality gap
-            duality_gap = compute_duality_gap(G_k, y_k)
-            opt_res['stop'].append(duality_gap)
-            if duality_gap < FW_tol or i >= max_iter:
-                # here we put a limit on the number of computations as the problem is likely to change
-                # however we do not do it in the main loop!
-                compute = False
-                if duality_gap < FW_tol:
-                    print("     FW solved to tol")
-                else:
-                    print("     Max inner iterations reached")
-                print("     Number of inner loop iterations: ", i)
-                continue
-        elif stopping_criterion == 'relative_progress' and i > 1:
-            obj_prev = opt_res['obj'][-2]
-            obj_k = opt_res['obj'][-1]
-            rel_progress = abs(obj_prev-obj_k)/obj_prev
-            opt_res['stop'].append(rel_progress)
-            if len(opt_res['stop']) > n_rolling and np.mean(opt_res['stop'][-n_rolling:]) < FW_tol:
-                compute = False
-                print("     Number of inner loop iterations: ", i-1)
-                print("     FW solved to tol")
-            elif i > max_iter:
-                compute = False
-                print("    Max inner iterations reached")
-                print("     Number of inner loop iterations: ", i-1)
-                continue
+        opt_res, compute = compute_stopping_criterion(
+            stopping_criterion, i, G_k, y_k, opt_res,
+            FW_tol, compute, max_iter, n_rolling=5)
+        
+        if not compute:
+            continue
 
         # update the flows
         G_k = update_flows(G_k, y_k, a_k, edge_list)
@@ -302,9 +231,6 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
             # you need to update the OD (evolving bounds)
             OD = update_OD(OD, ri_k, G_k, evolving_bounds)
 
-        # print("#####j########")
-        # print("iteration #: ", i)
-        # recompute
         # save for analyses
         obj_k, G_k = Value_Total_Cost(G_k.copy())
         opt_res['obj'].append(obj_k)
@@ -313,6 +239,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         y_list.append(y_k.copy())
         OD_list.append(OD.copy())
         i += 1
+
     return G_list, y_list, opt_res, OD_list, i, balance_list
 
 
@@ -332,3 +259,41 @@ def compute_duality_gap(G_k, y_k):
             d_gap += (x_k_ij-y_k_ij)*c_k_ij
 
     return d_gap
+
+
+def compute_stopping_criterion(
+        stopping_criterion, i, G_k, y_k, opt_res,
+        FW_tol, compute, max_iter, n_rolling=5):
+
+    if stopping_criterion == 'duality_gap' and i > 1:
+        # compute the duality gap
+        duality_gap = compute_duality_gap(G_k, y_k)
+        opt_res['stop'].append(duality_gap)
+        if duality_gap < FW_tol or i >= max_iter:
+            # here we put a limit on the number of computations as the problem is likely to change
+            # however we do not do it in the main loop!
+            compute = False
+            if duality_gap < FW_tol:
+                print("     FW solved to tol")
+            else:
+                print("     Max inner iterations reached")
+            print("     Number of inner loop iterations: ", i)
+
+    elif stopping_criterion == 'relative_progress' and i > 1:
+        obj_prev = opt_res['obj'][-2]
+        obj_k = opt_res['obj'][-1]
+        rel_progress = abs(obj_prev-obj_k)/obj_prev
+        opt_res['stop'].append(rel_progress)
+
+        #We evaluate it over a rolling mean to make sure we just did not hit a random lucky spot
+        if len(opt_res['stop']) > n_rolling and np.mean(opt_res['stop'][-n_rolling:]) < FW_tol:
+            compute = False
+            print("     Number of inner loop iterations: ", i-1)
+            print("     FW solved to tol")
+
+        elif i > max_iter:
+            compute = False
+            print("    Max inner iterations reached")
+            print("     Number of inner loop iterations: ", i-1)
+
+    return opt_res, compute
