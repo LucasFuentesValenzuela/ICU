@@ -222,20 +222,6 @@ def update_flows(G, y_k, a_k, edge_list, solver='Outer'):
 ##################################################
 
 
-# it is supposed to be super easy to code... Supposed to work
-# directly... I don't understand.
-#
-# We do not see the behavior we expect -- therefore there is issues
-# in implementation
-
-# Do not forget:
-#   - you are solving for a fixed value of rebanlancers, with a fixed OD list
-#   - therefore, you should have steady decrease. NO QUESTION. So if it does not work
-#            - either your solver is not good
-#            - or you are not solving the same problem everytime...
-#            - This seems weird
-#
-# Also, it is not a problem of updating the total cost (I checked that they both corresponded).
 
 
 def line_search(G, y_k, edge_list):
@@ -245,11 +231,21 @@ def line_search(G, y_k, edge_list):
     constraints = [a_k >= 0, a_k <= 1]
     obj = Total_Cost_line_search(G, y_k, a_k, edge_list)
     # print(obj)
-    prob = cp.Problem(cp.Minimize(obj), constraints)
+
+    prob = cp.Problem(cp.Minimize(obj), constraints) 
     prob.solve(solver=cp.ECOS, verbose=False)
-    # prob.solve(solver = cp.MOSEK, verbose=False)
+    print('solver ECOS:', a_k.value)
     print("Status of line search problem : ", prob.status)
-    print(a_k.value)
+
+    # prob.solve(solver = cp.GUROBI, verbose=False)
+    # print('solver GUROBI', a_k.value)
+    # print("Status of line search problem : ", prob.status)
+
+    # prob = cp.Problem(cp.Minimize(obj), constraints)
+    # prob.solve(solver = cp.CVXOPT, verbose=False)
+    # print('solver CVXOPT', a_k.value)
+    # print("Status of line search problem : ", prob.status)
+
     return a_k.value
 
 #TODO: rewrite everything as there is a lot of uncertainty around
@@ -273,13 +269,13 @@ def Total_Cost_line_search(G, y_k, a_k, edge_list):
 
         #TODO: is this useful? 
         # guard against instabilities:
-        if np.abs(flow_x) < 10**-5:
-            flow_x = 0
-        if np.abs(delta) < 10**-5:
-            delta = 0
+        # if np.abs(flow_x) < 10**-5:
+        #     flow_x = 0
+        # if np.abs(delta) < 10**-5:
+        #     delta = 0
 
         flow_tmp = flow_x + a_k*delta
-
+        print(e, flow_tmp)
         # retrieve parameters to compute the BPR
         phi = G[e[0]][e[1]]['phi']
         k = G[e[0]][e[1]]['k']

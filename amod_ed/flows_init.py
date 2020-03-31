@@ -37,8 +37,9 @@ def initialize_rebalancers(G, G_prev, ri_k):
     r_i, nodes_list = _get_rebalancing_vector(ri_k)
     f_r, edge_list = _get_rebalancing_flows(G, G_prev)
     # here we have G as it is updated with capacities
-    A = _get_matrix(G, r_i, edge_list, nodes_list)
-    f_init_r = _compute_nearest_feasible(f_r, r_i, A, norm=2)
+    A = _get_matrix_A(G, r_i, edge_list, nodes_list)
+    B = _get_matrix_B(r_i, edge_list, nodes_list, A)
+    f_init_r = _compute_nearest_feasible(f_r, r_i, A, B, norm=2)
     G = introduce_rebalancers(G, f_init_r, edge_list)
 
     return G
@@ -102,8 +103,31 @@ def _get_rebalancing_flows(G, G_prev):
         f_r.append(G_prev[e[0]][e[1]]['f_r'])
     return np.array(f_r), edge_list
 
+def _get_matrix_B(r_i, edge_list, nodes_list, A):
+    """
+    This matrix enforces rebalancing flow conservation at each node with r_i >0. 
 
-def _get_matrix(G, r_i, edge_list, nodes_list):
+    Another way to do it (easier) is just to say that f_r (n to R) = r_i[n]
+    """
+    eps = 10**-5
+    n_edges = len(edge_list)
+    n_nodes = len(nodes_list)
+    B = np.zeros((0, n_edges)) #create empty array
+
+    for i in range(n_nodes):
+        if r_i[i] > eps: 
+            idx_e = edge_list.index((nodes_list[i], 'R'))
+            new_row = np.zeros((1, n_edges))
+            new_row[0, idx_e] = -1
+            new_row = new_row + A[i,:]
+            B = np.concatenate((B, new_row), axis = 0)
+    
+    if B.shape[0]==0:
+        return np.zeros((1, n_edges))
+
+    return B
+
+def _get_matrix_A(G, r_i, edge_list, nodes_list):
     """
     Extract the out matrix from the graph to compute initialization. 
 
@@ -117,39 +141,40 @@ def _get_matrix(G, r_i, edge_list, nodes_list):
     A_out = np.zeros((n_nodes, n_edges))
     A_in = np.zeros((n_nodes, n_edges))
 
-    idx_R = nodes_list.index('R')
+    
     for i in range(len(nodes_list)):
         for j in range(len(edge_list)):
             n = nodes_list[i]
             e = edge_list[j]
-
+            
             # equivalent to saying that the node is in excess of rebalancers, ie ri<0
             if G[e[0]][e[1]]['k'] < eps and e[1]=='R':  
                 continue
 
             if n == e[0] and e[1]!='R':  # n is origin and is a graph edge
                 A_out[i, j] = 1
-            elif n == e[1]:  # n is destination
+            elif n == e[1] and n!='R':  # n is destination
                 A_in[i, j] = 1
 
     A = A_in - A_out
+    #currently the A matrix should have one row of zeros -- TODO: discard that
 
-    for i in range(len(nodes_list)):
-        if r_i[i] > eps: 
-            A[idx_R, :] = A[idx_R, :] - A[i,:]
+    # for i in range(len(nodes_list)):
+    #     if r_i[i] > eps: 
+    #         A[idx_R, :] = A[idx_R, :] - A[i,:]
     return A
 
 
-def _compute_nearest_feasible(f_r, r_i, A, norm=2):
+def _compute_nearest_feasible(f_r, r_i, A, B, norm=2):
     """
     We compute the nearest feasible point for the rebalancing flow. 
     """
     f = cp.Variable(f_r.shape[0])
-    constraints = [A*f == r_i, f >= 0]
+    constraints = [A*f == r_i, B*f == 0, f >= 0]
     obj = cp.Minimize(cp.norm(f-f_r, norm))
     prob = cp.Problem(obj, constraints)
-    _ = prob.solve()
-    # print("Initialization problem status: ", prob.status)
+    _ = prob.solve(solver = cp.ECOS)
+    print("Initialization problem status: ", prob.status)
     f_init_r = f.value
     return f_init_r
 

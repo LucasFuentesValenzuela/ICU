@@ -4,9 +4,9 @@
 #TODO: include tolerances as parameters too
 
 #default parameters values
-NI=15
+NI=20
 LR=10000
-NO=20
+NO=11
 SD='unstucking_balance'
 
 PATH='2Nodes_back2basics'

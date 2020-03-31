@@ -45,8 +45,6 @@ def solve(
     balance.append(balance_k)
     # opt_res_.append([])
 
-    G_prev = None
-    # FW_tol_k=.1
     FW_tol_k = FW_tol
     compute = True
 
@@ -60,8 +58,8 @@ def solve(
         while compute:
 
             # TODO: make this the standard
-            if i > 10:
-                continuous_step = True
+            # if i > 10:
+                # continuous_step = True
 
             print("##########################################")
             print("ITERATION #: ", i)
@@ -69,6 +67,8 @@ def solve(
             print("Current max ni: ", max_iter)
             print("i_offset : ", i_offset)
 
+            if i == 10: 
+                max_iter = 100
             G_list, _, opt_res_k, OD_list_k, n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol=FW_tol_k,
                 step='line_search', evolving_bounds=evolving_bounds, max_iter=max_iter,
@@ -116,7 +116,7 @@ def solve(
             # TODO: implement this for real
             if continuous_step:
                 i_offset += n_iter
-                i_offset = i_offset ** 1.5
+                # i_offset = i_offset ** 1.5
             i += 1
     except KeyboardInterrupt:
         print("Program interrupted by user -- Current data saved")
@@ -124,7 +124,7 @@ def solve(
 
     return G_, ri_, i-1, n_iter_tot, np.array(balance), opt_res_, OD_list, balance_list
 
-# TODO: DISCARD
+# TODO: consolidate what we think about diff ri, diff f_r, balance... as stopping crit. 
 # def diff_ri(ri_k, ri_new):
 
 #     diff = []
@@ -173,7 +173,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     ###################################
 
     # replace None by G_0 if want proper init
-    G_k = initialize_flows(G_k, G_0, ri_k, OD)
+    G_k = initialize_flows(G_k, None, ri_k, OD) #we do not use init with NN just to use line search and see
+
     G_k = update_costs(G_k)
 
     obj_k, G_k = Value_Total_Cost(G_k)

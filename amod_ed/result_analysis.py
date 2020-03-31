@@ -293,20 +293,27 @@ def plot_balance_list_output(balance_list, path, nframes=4):
 
 #####################################################################
 
-def plot_balance_list(balance_list, b_scale='linear', progress = False):
+def plot_balance_list(balance_list, b_scale='linear', progress = False, n_lims = None):
     """
     Plots both the value of the stopping criterion and the total cost
     """
-    nplots=len(balance_list)
+    if n_lims == None:
+        n_min = 0
+        n_max=len(balance_list)
+    else:
+        n_min = n_lims[0]
+        n_max = n_lims[1]
     ncols=2
-    nrows=int(np.ceil(nplots/ncols))
+    nrows=int(np.ceil((n_max-n_min)/ncols))
     _, axes = plt.subplots(nrows, ncols, figsize=(22, 5*nrows))
-    for n in range(nplots):
-        i = int(np.floor(n / ncols))
-        j=n % ncols
+    for n in range(n_min, n_max):
+        ni = n-n_min 
+        i = int(np.floor(ni / ncols))
+        j=ni % ncols
         r_p = []
-        for k in range(len(balance_list[n])-1):
-            r_p.append(np.abs(balance_list[n][k]-balance_list[n][k+1])/balance_list[n][k])
+        if progress: 
+            for k in range(len(balance_list[n])-1):
+                r_p.append(np.abs(balance_list[n][k]-balance_list[n][k+1])/balance_list[n][k])
 
         axes[i,j].plot(balance_list[n][1:], label='balance', color='b')#we put [1:] because want not to show drop in the beginning: TODO: understand fully and explain
         axes[i,j].set_title('Outer loop # '+ str(n))
