@@ -5,7 +5,7 @@ import cvxpy as cp
 
 
 def BPR_int(phi, x, kappa, alpha=0.15, beta=4):
-    return phi*(x+alpha/(beta+1)*cp.power(x, (beta+1))/np.power(kappa, beta))
+    return cp.multiply(phi,(x+cp.multiply(alpha/(beta+1),cp.power(x, (beta+1))/np.power(kappa, beta))))
 
 #returns the value of BPR int, not just an expression as is the case above
 

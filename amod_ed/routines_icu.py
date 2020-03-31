@@ -1,5 +1,5 @@
 # routines to support in the numerical tests for the routing algorithm
-from amod_ed.helpers_icu import BPR, BPR_int
+from amod_ed.helpers_icu import BPR, BPR_int, BPR_int_val
 import numpy as np
 import networkx as nx
 import cvxpy as cp
@@ -231,20 +231,22 @@ def line_search(G, y_k, edge_list):
     constraints = [a_k >= 0, a_k <= 1]
     obj = Total_Cost_line_search(G, y_k, a_k, edge_list)
     # print(obj)
+    # print(obj)
 
     prob = cp.Problem(cp.Minimize(obj), constraints) 
     prob.solve(solver=cp.ECOS, verbose=False)
     print('solver ECOS:', a_k.value)
     print("Status of line search problem : ", prob.status)
 
-    # prob.solve(solver = cp.GUROBI, verbose=False)
-    # print('solver GUROBI', a_k.value)
-    # print("Status of line search problem : ", prob.status)
+    prob = cp.Problem(cp.Minimize(obj), constraints)
+    prob.solve(solver = cp.GUROBI, verbose=False)
+    print('solver GUROBI', a_k.value)
+    print("Status of line search problem : ", prob.status)
 
-    # prob = cp.Problem(cp.Minimize(obj), constraints)
-    # prob.solve(solver = cp.CVXOPT, verbose=False)
-    # print('solver CVXOPT', a_k.value)
-    # print("Status of line search problem : ", prob.status)
+    prob = cp.Problem(cp.Minimize(obj), constraints)
+    prob.solve(solver = cp.CVXOPT, verbose=False)
+    print('solver CVXOPT', a_k.value)
+    print("Status of line search problem : ", prob.status)
 
     return a_k.value
 
@@ -275,7 +277,6 @@ def Total_Cost_line_search(G, y_k, a_k, edge_list):
         #     delta = 0
 
         flow_tmp = flow_x + a_k*delta
-        print(e, flow_tmp)
         # retrieve parameters to compute the BPR
         phi = G[e[0]][e[1]]['phi']
         k = G[e[0]][e[1]]['k']
@@ -287,6 +288,7 @@ def Total_Cost_line_search(G, y_k, a_k, edge_list):
             # continue
 
         cost_edge += BPR_int(phi, flow_tmp, k, beta=4)
+
         if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
             cost_edge -= (flow_tmp)*G[e[0]][e[1]]['shift']
         if 'pot' in G.nodes[e[1]]:
@@ -295,6 +297,56 @@ def Total_Cost_line_search(G, y_k, a_k, edge_list):
         F_E += cost_edge
     return F_E
 
+
+###############
+# DEBUGGING
+# the same function as above with the value of the cost
+
+def Total_Cost_line_search_val(G, y_k, a_k, edge_list):
+
+    F_E = 0
+
+    for e in edge_list:  # you know for sure exactly what edge it is for
+
+        cost_edge = 0
+        x_k_e_m = G[e[0]][e[1]]['f_m']
+        x_k_e_r = G[e[0]][e[1]]['f_r']
+        flow_x = x_k_e_m + x_k_e_r
+
+        y_k_e_m = y_k[(e[0], e[1]), 'f_m']
+        y_k_e_r = y_k[(e[0], e[1]), 'f_r']
+        flow_y = y_k_e_m + y_k_e_r
+
+        delta = flow_y - flow_x
+
+        #TODO: is this useful? 
+        # guard against instabilities:
+        # if np.abs(flow_x) < 10**-5:
+        #     flow_x = 0
+        # if np.abs(delta) < 10**-5:
+        #     delta = 0
+
+        flow_tmp = flow_x + a_k*delta
+        # retrieve parameters to compute the BPR
+        phi = G[e[0]][e[1]]['phi']
+        k = G[e[0]][e[1]]['k']
+
+        #TODO: what exactly do you need here? 
+        if k < 10**-5:  # you eliminate the edges that are considered non-usable
+            continue
+        # if e[1] == 'R':
+            # continue
+
+        # cost_edge += BPR_int(phi, flow_tmp, k, beta=4)
+        cost_edge += BPR_int_val(phi, flow_tmp, k, beta=4)
+        
+        if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
+            cost_edge -= (flow_tmp)*G[e[0]][e[1]]['shift']
+        if 'pot' in G.nodes[e[1]]:
+            cost_edge += G.nodes[e[1]]['pot']*(flow_tmp)
+
+        F_E += cost_edge
+    return F_E
 
 ###############################
 #

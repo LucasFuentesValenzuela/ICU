@@ -620,10 +620,11 @@ def plot_cost_all_path(G, OD, o, d):
         return
 
     nplots = len(cost[o, d])
-    
     ncols=2
     nrows=int(np.ceil(nplots/2))
     _, axes = plt.subplots(nrows,ncols, figsize=(13, 4*nrows))
+    if nrows ==1:
+        axes = np.array([axes[0], axes[1]]).reshape((1,2))
     max_c = 0
     for c in cost[o, d]:
         max_c = np.max([max_c, c[-1]])
@@ -643,7 +644,7 @@ def plot_cost_all_path(G, OD, o, d):
             axes[i,j].legend()
             axes[i,j].set_ylim([0, 1.1*max_c])
             axes[i,j].set_title(str(paths[o,d][n])+ " | intersect at x = " +
-                            str(np.around(x[index_min], 2)) + " | cost: " + str(np.around(crt_[index_min],2)))
+                            str(np.around(x[index_min], 2)) + " | cost: " + str(np.around(crt_[index_min],2)), fontsize = 12)
 
     return
 
