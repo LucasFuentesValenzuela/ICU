@@ -348,6 +348,44 @@ def Total_Cost_line_search_val(G, y_k, a_k, edge_list):
         F_E += cost_edge
     return F_E
 
+#################################################
+#
+# Backtracking line search
+#
+from amod_ed.helpers_icu import Value_Total_Cost
+
+def backtracking_line_search(G, y_k, a = .25, b = .5):
+
+    F_E_k, G = Value_Total_Cost(G)
+    f_k = _get_first_order(G, y_k)
+    compute = True
+    t = 1
+    while compute:
+        F_E_t = Total_Cost_line_search_val(G, y_k, t, G.edges())
+        if F_E_t < F_E_k + a*t*f_k:
+            return t
+        elif t < 10**-20:
+            return 0
+        t = b*t
+    return
+
+def _get_first_order(G, y_k):
+    f_k = 0
+    for e in G.edges():
+        x_k_e_m = G[e[0]][e[1]]['f_m']
+        x_k_e_r = G[e[0]][e[1]]['f_r']
+        flow_x = x_k_e_m + x_k_e_r
+
+        y_k_e_m = y_k[(e[0], e[1]), 'f_m']
+        y_k_e_r = y_k[(e[0], e[1]), 'f_r']
+        flow_y = y_k_e_m + y_k_e_r 
+
+        delta_flow = flow_y - flow_x
+
+        f_k += delta_flow*G[e[0]][e[1]]['cost']
+    return f_k
+
+
 ###############################
 #
 # Flow conservation at nodes

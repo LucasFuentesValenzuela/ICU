@@ -315,7 +315,7 @@ def plot_balance_list(balance_list, b_scale='linear', progress = False, n_lims =
             for k in range(len(balance_list[n])-1):
                 r_p.append(np.abs(balance_list[n][k]-balance_list[n][k+1])/balance_list[n][k])
 
-        axes[i,j].plot(balance_list[n][1:], label='balance', color='b')#we put [1:] because want not to show drop in the beginning: TODO: understand fully and explain
+        axes[i,j].plot(balance_list[n], label='balance', color='b')#we put [1:] because want not to show drop in the beginning: TODO: understand fully and explain
         axes[i,j].set_title('Outer loop # '+ str(n))
         # axes[i,j].set_yscale('log')
     #     axes[i,j].set_xscale('log')

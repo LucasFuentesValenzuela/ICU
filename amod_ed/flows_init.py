@@ -42,6 +42,15 @@ def initialize_rebalancers(G, G_prev, ri_k):
     f_init_r = _compute_nearest_feasible(f_r, r_i, A, B, norm=2)
     G = introduce_rebalancers(G, f_init_r, edge_list)
 
+    # # print(nodes_list)
+    # # print(edge_list)
+    # # print(A)
+    # # print(B)
+    # # print(r_i)
+
+    # for i in range(len(f_r)):
+    #     print(edge_list[i], f_r[i], f_init_r[i])
+
     return G
 
 
@@ -175,6 +184,7 @@ def _compute_nearest_feasible(f_r, r_i, A, B, norm=2):
     prob = cp.Problem(obj, constraints)
     _ = prob.solve(solver = cp.ECOS)
     print("Initialization problem status: ", prob.status)
+    print("obj value: ", obj.value)
     f_init_r = f.value
     return f_init_r
 

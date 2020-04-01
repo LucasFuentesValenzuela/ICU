@@ -5,6 +5,7 @@ import numpy as np
 import networkx as nx
 from amod_ed.helpers_icu import Value_Total_Cost
 from amod_ed.routines_icu import update_costs, update_OD, update_capacities, AoN, estimate_ri_k, update_flows, fixed_step, line_search
+from amod_ed.routines_icu import backtracking_line_search
 from amod_ed.routines_icu import check_flow_cons_at_OD_nodes
 from amod_ed.flows_init import initialize_flows
 
@@ -67,8 +68,6 @@ def solve(
             print("Current max ni: ", max_iter)
             print("i_offset : ", i_offset)
 
-            if i == 10: 
-                max_iter = 100
             G_list, _, opt_res_k, OD_list_k, n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol=FW_tol_k,
                 step='line_search', evolving_bounds=evolving_bounds, max_iter=max_iter,
@@ -77,8 +76,13 @@ def solve(
             # this is a good choice only if you have monotonous decrease
             G_end = G_list[-1].copy()
 
+            a_k_smoothing = 0 
+            if i > 10:
+                ri_smoothing = True
+            print("ri_smoothing: ", ri_smoothing)
+
             ri_new, G_end = estimate_ri_k(
-                G_end.copy(), ri_smoothing=ri_smoothing, a_k=1/2, ri_prev=ri_k)
+                G_end.copy(), ri_smoothing=ri_smoothing, a_k=a_k_smoothing, ri_prev=ri_k)
 
             balance_new = check_flow_cons_at_OD_nodes(G_end.copy(), OD)
             balance_norm = np.linalg.norm(balance_new)
@@ -173,7 +177,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
     ###################################
 
     # replace None by G_0 if want proper init
-    G_k = initialize_flows(G_k, None, ri_k, OD) #we do not use init with NN just to use line search and see
+    G_k = initialize_flows(G_k, G_0, ri_k, OD) #we do not use init with NN just to use line search and see
 
     G_k = update_costs(G_k)
 
@@ -201,7 +205,8 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
 
         if step == 'line_search':
             # TODO: make this work
-            a_k = line_search(G_k, y_k, edge_list)
+            # a_k = line_search(G_k, y_k, edge_list)
+            a_k = backtracking_line_search(G_k, y_k, a = 0.01, b = .5)
 
         elif step == 'fixed':
             # TODO: decide whether to scrap the update factor
