@@ -52,15 +52,15 @@ def solve(
     # True when we reached a stage where we want to keep the previous value of the step
     # useful only if we use fixed step
     # TODO: implement that when using fixed step.
-    continuous_step = False
+    continuous_step = False #I think you can enable it relatively early on
     i_offset = 0
 
     try:
         while compute:
 
             # TODO: make this the standard
-            # if i > 10:
-                # continuous_step = True
+            if i > 10:
+                continuous_step = True
 
             print("##########################################")
             print("ITERATION #: ", i)
@@ -70,7 +70,7 @@ def solve(
 
             G_list, _, opt_res_k, OD_list_k, n_iter, balance_ = FW_graph_extension(
                 G_k.copy(), OD.copy(), edge_list, ri_k, FW_tol=FW_tol_k,
-                step='fixed', evolving_bounds=evolving_bounds, max_iter=max_iter,
+                step='line_search', evolving_bounds=evolving_bounds, max_iter=max_iter,
                 stopping_criterion=stopping_criterion, update_factor=update_factor, i_offset=i_offset)
 
             # this is a good choice only if you have monotonous decrease
@@ -206,7 +206,7 @@ def FW_graph_extension(G_0, OD, edge_list, ri_k, FW_tol=10**-6,
         if step == 'line_search':
             # TODO: make this work
             # a_k = line_search(G_k, y_k, edge_list)
-            a_k = backtracking_line_search(G_k, y_k, a = 0.1, b = .5)
+            a_k = backtracking_line_search(G_k, y_k, a = 0.1, b = .8)
 
         elif step == 'fixed':
             # TODO: decide whether to scrap the update factor

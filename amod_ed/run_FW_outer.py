@@ -84,8 +84,8 @@ def main():
     print("     fu: ", fixed_update)
 
     ri_smoothing = False
-    FW_tol = 0
-    tol = 0
+    FW_tol = 10**-8
+    tol = 10**-10
 
     G_0, OD = construct_graph(path, L_rebalancing_edge=L_r)
     edge_list = get_edge_list(G_0)
@@ -108,7 +108,7 @@ def main():
     params['tol'] = tol
 
     # Save the different documents
-    to_save = [G_FW, OD, ri_FW, n_outer, n_inner,
+    to_save = [[], OD, ri_FW, n_outer, n_inner,
                balance, opt_res, OD_list, balance_list, params]
 
     print('Saving to external .pkl file')

@@ -34,15 +34,16 @@ def initialize_rebalancers(G, G_prev, ri_k):
     for the rebalancing flow f_r (the passenger flow is feasible as OD don't change). 
     """
 
-    r_i_e, nodes_list_e, r_i_d, nodes_list_d = _get_rebalancing_vector(ri_k)
+    r_i, nodes_list= _get_rebalancing_vector(ri_k)
     f_r, edge_list = _get_rebalancing_flows(G, G_prev)
     # here we have G as it is updated with capacities
-    A = _get_matrix_A(G, r_i_e, edge_list, nodes_list_e)
-    B = _get_matrix_B(r_i_d, edge_list, nodes_list_d, A)
-    f_init_r = _compute_nearest_feasible(f_r, r_i_e, A, B, norm=2)
+    A = _get_matrix_A(G, r_i, edge_list, nodes_list)
+    # B = _get_matrix_B(r_i_d, edge_list, nodes_list_d, A)
+    f_init_r = _compute_nearest_feasible(f_r, r_i, A, norm=2)
+
     G = introduce_rebalancers(G, f_init_r, edge_list)
 
-
+    
     # for i in range(len(f_r)):
         # print(edge_list[i], f_r[i], f_init_r[i])
 
@@ -72,28 +73,25 @@ def _get_rebalancing_vector(ri_k):
         r_i > 0 if node i in deficit of rebalancers
     """
     eps = 10**-5
-    r_i_excess=[]
-    r_i_deficit=[]
+    r_i=[]
     nodes_list_all = list(ri_k.keys())
-    nodes_list_excess=[]
-    nodes_list_deficit=[]
+    nodes_list=[]
     for i in range(len(nodes_list_all)):
         n=nodes_list_all[i]
 
         #we only keep the nodes that are actually in the graph + the rebalancing node
         #NEW : we actually only keep the nodes in the graph that are in excess
         #because they have an associated od pair (n, R)
-        if n.endswith('_p'): #This is a "dummy node"
+        if n.endswith('_p') or n=='R': #This is a "dummy node"
             continue
-        if ri_k[n] < -eps:
-            nodes_list_excess.append(n)
-            r_i_excess.append(ri_k[n])
-        elif ri_k[n] > eps or n =='R':
-            nodes_list_deficit.append(n) 
-            r_i_deficit.append(ri_k[n])
+        # if ri_k[n] < -eps:
+        nodes_list.append(n)
+        r_i.append(ri_k[n])
+        # elif ri_k[n] > eps or n =='R':
+            # nodes_list_deficit.append(n) 
+            # r_i_deficit.append(ri_k[n])
 
-    return (np.array(r_i_excess), nodes_list_excess, 
-    np.array(r_i_deficit), nodes_list_deficit) #now nodes_list is only the nodes that we keep
+    return np.array(r_i), nodes_list #now nodes_list is only the nodes that we keep
 
 
 def _get_rebalancing_flows(G, G_prev):
@@ -145,9 +143,9 @@ def _get_matrix_A(G, r_i, edge_list, nodes_list):
             if G[e[0]][e[1]]['k'] < eps and e[1]=='R':  
                 continue
 
-            if n == e[0] and e[1]!='R':  # n is origin and is a graph edge
+            if n == e[0]:  # n is origin and is a graph edge
                 A_out[i, j] = 1
-            elif n == e[1] and n!='R':  # n is destination
+            elif n == e[1]:  # n is destination
                 A_in[i, j] = 1
 
     A = A_in - A_out
@@ -180,24 +178,24 @@ def _get_matrix_B(r_i, edge_list, nodes_list, A):
     return B
 
 
-def _compute_nearest_feasible(f_r, r_i, A, B, norm=2):
+def _compute_nearest_feasible(f_r, r_i, A, norm=2):
     """
     We compute the nearest feasible point for the rebalancing flow. 
     """
-
+    eps = 10**-5
     f = cp.Variable(f_r.shape[0])
-    if r_i.shape[0]==0:
-        r_i = np.zeros((A.shape[0], 1))
-        print(r_i)
-        constraints = [f >= 0]
-    else:
-        constraints = [A*f == r_i, B*f == 0, f >= 0]
+    r_i_opt = np.zeros(r_i.shape)
+    for i in range(r_i.shape[0]):
+        if r_i[i]<-eps:
+            r_i_opt[i] = r_i[i]
+
+    constraints = [A*f == r_i_opt, f >= 0]
 
     obj = cp.Minimize(cp.norm(f-f_r, norm))
     prob = cp.Problem(obj, constraints)
     _ = prob.solve(solver = cp.ECOS)
     print("Initialization problem status: ", prob.status)
-    print("obj value: ", obj.value)
+    # print("obj value: ", obj.value)
     f_init_r = f.value
     return f_init_r
 

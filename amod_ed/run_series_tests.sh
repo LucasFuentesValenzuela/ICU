@@ -4,10 +4,25 @@
 #TODO: include tolerances as parameters too
 
 #default parameters values
-NI=1000
-LR=100000
-NO=20
-SD='updated_init'
+NI=5000
+LR=10000
+NO=50
+SD='Li_comparison_ni_5000'
 
-PATH='10Nodes'
-$CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $LR -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 0.0
+# PATH='10Nodes'
+# for Li in 10 100 1000 10000 100000 1000000 10000000
+# do 
+# $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $Li -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 0.0
+# done
+
+PATH='25Nodes'
+for Li in 1000 100000 10000000
+do 
+$CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $Li -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 0.0
+done
+
+# PATH='100Nodes'
+# for Li in 10 100 1000 10000 100000 1000000 10000000
+# do 
+# $CONDA_PYTHON_EXE run_FW_outer.py -p $PATH -L $Li -ni $NI -no $NO -sd $SD -ev 0 -sc 'rp' -fu 0.0
+# done

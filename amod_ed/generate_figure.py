@@ -7,7 +7,7 @@ import os
 from result_analysis import print_balance, plot_ri
 import matplotlib.pyplot as plt
 
-
+DATA_PATH = '/Users/lucasfuentes/icu/notebooks/Data/'
 
 def main():
     import matplotlib
@@ -25,12 +25,12 @@ def main():
     path_c=args.pc 
     shift=args.s
     plot_balance(path, path_c, shift)
-    plot_duality_gap(path, path_c)
+    # plot_duality_gap(path, path_c)
     return 
 
 
 def plot_balance(path, path_c, shift, save=True):
-    path = os.path.join('Data/', path,'outputs', path_c)
+    path = os.path.join(DATA_PATH, path,'outputs', path_c)
     fig = plt.figure(figsize=(10,8))
     # ax1 = fig.add_subplot(1, 1, 1)
     for f in os.listdir(path):
