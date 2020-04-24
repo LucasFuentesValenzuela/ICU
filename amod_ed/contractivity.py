@@ -6,7 +6,7 @@ import os
 
 IMAGES_PATH = "/Users/lucasfuentes/ASL/Images"
 
-def viz_costs(name, phi_p, phi_inv, k_p, k_inv, shift_inv):
+def viz_costs(name, phi_p, phi_inv, k_p, k_inv, shift_inv, save = False):
     edges = ["Edge $(1,2)$", "Edge $(2,1)$"]
     #plot paths for both directions
     x = np.linspace(0, 10, 100)
@@ -22,7 +22,33 @@ def viz_costs(name, phi_p, phi_inv, k_p, k_inv, shift_inv):
         ax[i].legend()
         ax[i].set_title(edges[i])
         ax[i].set_ylim([cost[0]-10, inv_d[0]+10])
-    plt.savefig(os.path.join(IMAGES_PATH, name+".png"), transparent = True) 
+    if save:
+        plt.savefig(os.path.join(IMAGES_PATH, name+".png"), transparent = True) 
+
+def viz_costs_natural(name, phi_p, phi_inv, k_p, k_inv, shift_inv, save = False):
+    """
+    We do the same as above except that the demand is linear, not BPR
+
+    of the form - phi_inv x + shift_inv
+    """
+
+    edges = ["Edge $(1,2)$", "Edge $(2,1)$"]
+    #plot paths for both directions
+    x = np.linspace(0, 10, 100)
+    _, ax = plt.subplots(2,1,figsize = (10, 10))
+    for i in range(2):
+        cost = BPR(phi_p[i], x, k_p[i], beta = 4)
+        inv_d = -phi_inv[i]*x+shift_inv[i]
+        ax[i].plot(x, cost, label = 'Cost')
+        ax[i].plot(x, inv_d, label = 'Inverse Demand')
+        ax[i].grid()
+        ax[i].set_xlabel("Total Flow")
+        ax[i].set_ylabel("Cost")
+        ax[i].legend()
+        ax[i].set_title(edges[i])
+        ax[i].set_ylim([cost[0]-10, inv_d[0]+10])
+    if save:
+        plt.savefig(os.path.join(IMAGES_PATH, name+".png"), transparent = True) 
 
 def _construct_problem(phi_p, phi_inv, k_p, k_inv, shift_inv):
     f_p = cp.Variable(2)
@@ -37,6 +63,22 @@ def _construct_problem(phi_p, phi_inv, k_p, k_inv, shift_inv):
     obj = cp.Minimize(total_cost)
     prob = cp.Problem(obj, constraints)
     return f_p, f_r, r, prob
+
+
+def _construct_natural_problem(phi_p, phi_inv, k_p, k_inv, shift_inv):
+    f_p = cp.Variable(2)
+    f_r = cp.Variable(2)
+    d = cp.Parameter(2, nonneg = True)
+    
+    constraints = [f_p>=0, f_r>=0, f_p + f_r == cp.max(d), f_p == d,]
+    
+    total_cost = 0
+    for i in range(2):
+        cost = BPR_int(phi_p[i], f_p[i]+f_r[i], k_p[i], beta = 4)
+        total_cost = total_cost + cost
+    obj = cp.Minimize(total_cost)
+    prob = cp.Problem(obj, constraints)
+    return f_p, f_r, d, prob
 
 def run_algorithm(phi_p, phi_inv, k_p, k_inv, shift_inv, nsolutions = 5, seed =0, max_iter = 50):
     
@@ -56,9 +98,9 @@ def run_algorithm(phi_p, phi_inv, k_p, k_inv, shift_inv, nsolutions = 5, seed =0
 
     return r_tot
 
-def plot_results_run(r_tot, name):
+def plot_results_run(r_tot, name, save = True):
     #end point
-    plt.figure(figsize=(10,6))
+    plt.figure()
     for r_k in r_tot:
         plt.plot(r_k)
     # plt.plot(dr, np.ones(len(dr)), 'r')
@@ -69,10 +111,22 @@ def plot_results_run(r_tot, name):
     # plt.yscale('log')
     # plt.xlim([0, 20])
     # plt.ylim([0,1.3])
-    plt.savefig(os.path.join(IMAGES_PATH, name+"_r_k.png"), transparent = True)   
+    if save:
+        plt.savefig(os.path.join(IMAGES_PATH, name+"_r_k.png"), transparent = True)   
+
+    nback = 10
+    plt.figure()
+    for r_k in r_tot:
+        plt.plot(np.linspace(len(r_k)-nback, len(r_k),nback),r_k[-nback:])
+    # plt.plot(dr, np.ones(len(dr)), 'r')
+    plt.grid()
+    plt.xlabel('$k$')
+    plt.ylabel('$r_k$')
+    if save:
+        plt.savefig(os.path.join(IMAGES_PATH, name+"_r_k_zoom.png"), transparent = True) 
 
     #end point
-    plt.figure(figsize=(10,6))
+    plt.figure()
     for r_k in r_tot:
         diff = [np.abs(r_k[i] - r_k[i+1]) for i in range(len(r_k)-1)]
         plt.plot(diff)
@@ -81,7 +135,8 @@ def plot_results_run(r_tot, name):
     plt.xlabel('$k$')
     plt.ylabel('$\|r_k-r_{k+1}\|$')
     plt.yscale('log')
-    plt.savefig(os.path.join(IMAGES_PATH, name+"_difference_rk.png"), transparent = True)   
+    if save: 
+        plt.savefig(os.path.join(IMAGES_PATH, name+"_difference_rk.png"), transparent = True)   
     return
 
 
@@ -122,3 +177,39 @@ def sample_solutions(name ,phi_p, phi_inv, k_p, k_inv, shift_inv, nsamples=100, 
             print("     values of ri: ", samples[i], samples[i+1])
             print("     values of Tr: ", Tr[i], Tr[i+1])
     return dT, dr
+
+def sample_natural_solutions(name, phi_p, phi_inv, k_p, k_inv, shift_inv, nsamples=100, seed =0, save =False):
+
+    f_p, f_r, d, prob = _construct_natural_problem(phi_p, phi_inv, k_p, k_inv, shift_inv)
+
+    np.random.seed(seed)
+    samples = np.random.uniform(0,10, (2, nsamples))
+    Td = []
+
+    for i in range(nsamples):
+        d.value = samples[:,i]
+        prob.solve(solver = cp.GUROBI)
+        if prob.status!='optimal':
+            print("iteration %d, status %s" %(i, prob.status))
+        cost = BPR(phi_p, f_p.value+f_r.value, k_p, beta = 4)
+        demand = - np.multiply(phi_inv, cost) + shift_inv
+        Td.append(demand)
+
+    dd= []
+    dT = []
+    for i in range(nsamples-1):
+        dd.append(np.linalg.norm(samples[:,i]-samples[:,i+1]))
+        dT.append(np.linalg.norm(Td[i]-Td[i+1]))
+    
+    plt.figure(figsize=(10,6))
+    plt.scatter(dd, np.divide(dT, dd), s = 10, marker = 'o')
+    # plt.plot(dr, np.ones(len(dr)), 'r')
+    plt.grid()
+    plt.ylabel('$\|Td_1 - Td_2\|/\|d_1-d_2\|$')
+    plt.xlabel('$\|d_1-d_2\|$')
+    # plt.xlim([0, 20])
+    # plt.ylim([0,1.3])
+    if save:
+        plt.savefig(os.path.join(IMAGES_PATH, name+".png"), transparent = True)    
+
+    return dT, dd
