@@ -38,6 +38,53 @@ def _construct_problem(phi_p, phi_inv, k_p, k_inv, shift_inv):
     prob = cp.Problem(obj, constraints)
     return f_p, f_r, r, prob
 
+def run_algorithm(phi_p, phi_inv, k_p, k_inv, shift_inv, nsolutions = 5, seed =0, max_iter = 50):
+    
+    f_p, _, r, prob = _construct_problem(phi_p, phi_inv, k_p, k_inv, shift_inv)
+    np.random.seed(seed)
+
+    r0_ = np.random.uniform(-10,10, nsolutions) 
+    r_tot =[]
+    for i in range(nsolutions):
+        r_k=[]
+        r.value = r0_[i]
+        for j in range(max_iter):
+            r_k.append(r.value)
+            prob.solve(solver=cp.GUROBI)
+            r.value = f_p.value[0] - f_p.value[1]
+        r_tot.append(r_k)
+
+    return r_tot
+
+def plot_results_run(r_tot, name):
+    #end point
+    plt.figure(figsize=(10,6))
+    for r_k in r_tot:
+        plt.plot(r_k)
+    # plt.plot(dr, np.ones(len(dr)), 'r')
+    plt.grid()
+    plt.xlabel('$k$')
+    plt.ylabel('$r_k$')
+
+    # plt.yscale('log')
+    # plt.xlim([0, 20])
+    # plt.ylim([0,1.3])
+    plt.savefig(os.path.join(IMAGES_PATH, name+"_r_k.png"), transparent = True)   
+
+    #end point
+    plt.figure(figsize=(10,6))
+    for r_k in r_tot:
+        diff = [np.abs(r_k[i] - r_k[i+1]) for i in range(len(r_k)-1)]
+        plt.plot(diff)
+    # plt.plot(dr, np.ones(len(dr)), 'r')
+    plt.grid()
+    plt.xlabel('$k$')
+    plt.ylabel('$\|r_k-r_{k+1}\|$')
+    plt.yscale('log')
+    plt.savefig(os.path.join(IMAGES_PATH, name+"_difference_rk.png"), transparent = True)   
+    return
+
+
 def sample_solutions(name ,phi_p, phi_inv, k_p, k_inv, shift_inv, nsamples=100, seed =0):
 
     f_p, _, r, prob = _construct_problem(phi_p, phi_inv, k_p, k_inv, shift_inv)
