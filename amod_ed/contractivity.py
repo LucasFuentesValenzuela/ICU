@@ -137,6 +137,46 @@ def _construct_natural_problem(phi_p, phi_inv, k_p, k_inv, shift_inv):
     prob = cp.Problem(obj, constraints)
     return f_p, f_r, d, prob
 
+
+def _construct_initial_problem(phi_p, phi_inv, k_p, k_inv, shift_inv):
+    """
+    Build the optimization problem corresponding to the initial formulation. 
+    In this case, we solve for everything at once. 
+
+    Parameters
+    ----------
+    phi_p: list
+        list of floats, containing the value of phi for the passengers for each edge
+    phi_inv: list
+        list of floats, containing the value of phi for the inverse demand functions
+    k_p: list
+        list of floats, containing the value of kappa for each edge
+    k_inv: list
+        list of floats, containing the value of kappa for the inverse demand edges
+    shift_inv: list
+        list of floats, containing the value of the inverse demand shifts 
+    """
+
+    #Define the optimization variables
+    f_p = cp.Variable(2)
+    f_r = cp.Variable(2)
+
+    constraints = [f_p>=0, f_r>=0, f_p[0]-f_p[1] == f_r[1]-f_r[0], f_p <= 10, f_r <=10]
+    total_cost = 0
+    #iterate over edges to build the total cost
+    for i in range(2):
+        #For each direction, there are two terms to the cost
+        #1. the actual cost to the passenger
+        #2. The inverse demand cost
+        cost = BPR_int(phi_p[i], f_p[i]+f_r[i], k_p[i], beta = 4)
+        inv_d = -BPR_int(phi_inv[i], f_p[i], k_inv[i], beta = 4) + shift_inv[i]*f_p[i]
+        #The total cost is the sum of all those terms
+        total_cost = total_cost + cost - inv_d
+    #The objective is to minimize the total cost
+    obj = cp.Minimize(total_cost)
+    prob = cp.Problem(obj, constraints)
+    return f_p, f_r, prob
+
 def run_algorithm(phi_p, phi_inv, k_p, k_inv, shift_inv, nsolutions = 5, seed =0, max_iter = 50):
     """
     Run the initial (not the natural) algorithm starting from a series of randomly
