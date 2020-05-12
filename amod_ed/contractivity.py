@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-IMAGES_PATH = ""
+IMAGES_PATH = "/Users/lucasfuentes/ASL/Images"
 
 
 def viz_costs(name, phi_p, phi_inv, k_p, k_inv, shift_inv, save = False):
