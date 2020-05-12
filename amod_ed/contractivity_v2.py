@@ -157,7 +157,7 @@ def run_algorithm(edges, inv_edges, nsolutions = 5, seed =0, max_iter = 50):
         for j in range(max_iter):
             r_k.append(r.value)
             prob.solve(solver=cp.GUROBI)
-            net_flow = -(2*n_edges -1)*f_p.value
+            net_flow = [np.sum((n_edges == i)*f_p.value) for i in np.unique(n_edges)]
             # balance = [np.sum((n_edges == i)*f_p.value) for i in np.unique(n_edges)]
             r.value = net_flow[0]-net_flow[1]
         r_tot.append(r_k)
@@ -245,8 +245,7 @@ def sample_solutions(edges, inv_edges, nsamples=100, seed =0, name = '', save = 
         prob.solve(solver = cp.GUROBI)
         if prob.status!='optimal':
             print("iteration %d, status %s" %(i, prob.status))
-        net_flow = -(2*n_edges -1)*f_p.value
-        # balance = [np.sum((n_edges == i)*f_p.value) for i in np.unique(n_edges)]
+        net_flow = [np.sum((n_edges == i)*f_p.value) for i in np.unique(n_edges)]
         Tr.append(net_flow[0]-net_flow[1])
 
     dr= []
@@ -263,7 +262,7 @@ def sample_solutions(edges, inv_edges, nsamples=100, seed =0, name = '', save = 
     plt.ylabel('$\|Tr_1 - Tr_2\|/\|r_1-r_2\|$')
     plt.xlabel('$\|r_1-r_2\|$')
     plt.xlim([0, 20])
-    plt.ylim([0,1.3])
+    # plt.ylim([0,1.3])
     if save:
         plt.savefig(os.path.join(IMAGES_PATH, name+".png"), transparent = True)    
 
@@ -274,6 +273,8 @@ def sample_solutions(edges, inv_edges, nsamples=100, seed =0, name = '', save = 
     if idx[0].shape[0]>0:
         print("ratio larger than 1")
         for i in idx[0]: 
+            print("----------------------")
             print("     values of ri: ", samples[i], samples[i+1])
             print("     values of Tr: ", Tr[i], Tr[i+1])
+            print("     ratio: ", rat[i])
     return dT, dr
