@@ -17,6 +17,9 @@ def BPR_int_val(phi, x, kappa, alpha=0.15, beta=4):
 def BPR(phi, x, kappa, alpha=0.15, beta=4):
     return phi*(1+alpha*(np.divide(x, kappa))**beta)
 
+def BPR_cp(phi, x, kappa, alpha=0.15, beta=4):
+    return phi*(1+alpha*(cp.power(np.divide(x, kappa), beta)))
+
 
 def phi(l, t):
     return 36*l/t

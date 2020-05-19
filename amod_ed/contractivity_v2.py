@@ -34,7 +34,7 @@ def viz_costs(edges, inv_edges, name = '', save = False):
         k_p = edges.loc[i, 'k']
 
         ind_inv = inv_edges.index[np.logical_and(
-            inv_edges['origin'] == o, inv_edges['destination'] == d)][0]
+            inv_edges['origin'] == o, inv_edges['destination'] == d)][0]K
         phi_inv = inv_edges.loc[ind_inv, 'phi']
         k_inv = inv_edges.loc[ind_inv, 'k']
         shift_inv = inv_edges.loc[ind_inv, 'shift']
