@@ -4,21 +4,33 @@ import networkx as nx
 import cvxpy as cp
 
 
-def BPR_int(phi, x, kappa, alpha=0.15, beta=4):
-    return cp.multiply(phi,(x+cp.multiply(alpha/(beta+1),cp.power(x, (beta+1))/np.power(kappa, beta))))
+def BPR_int(phi, x, kappa, alpha=0.15, beta=4, correct = False):
+    if correct:
+        return cp.multiply(phi,(cp.power(x,2)/2+cp.multiply(alpha/(beta+1),cp.power(x, (beta+1))/np.power(kappa, beta))))
+    else:
+        return cp.multiply(phi,(x+cp.multiply(alpha/(beta+1),cp.power(x, (beta+1))/np.power(kappa, beta))))
 
 #returns the value of BPR int, not just an expression as is the case above
 
 
-def BPR_int_val(phi, x, kappa, alpha=0.15, beta=4):
-    return phi*(x+alpha/(beta+1)*np.power(x, (beta+1))/np.power(kappa, beta))
+def BPR_int_val(phi, x, kappa, alpha=0.15, beta=4, correct = False):
+    if correct:
+        return phi*(x**2/2+alpha/(beta+1)*np.power(x, (beta+1))/np.power(kappa, beta))
+    else:
+        return phi*(x+alpha/(beta+1)*np.power(x, (beta+1))/np.power(kappa, beta))
 
 
-def BPR(phi, x, kappa, alpha=0.15, beta=4):
-    return phi*(1+alpha*(np.divide(x, kappa))**beta)
+def BPR(phi, x, kappa, alpha=0.15, beta=4, correct = False):
+    if correct:
+        return phi*(x+alpha*(np.divide(x, kappa))**beta)
+    else:
+        return phi*(1+alpha*(np.divide(x, kappa))**beta)
 
-def BPR_cp(phi, x, kappa, alpha=0.15, beta=4):
-    return phi*(1+alpha*(cp.power(np.divide(x, kappa), beta)))
+def BPR_cp(phi, x, kappa, alpha=0.15, beta=4, correct = False):
+    if correct:
+        return phi*(x+alpha*(cp.power(np.divide(x, kappa), beta)))
+    else:
+        return phi*(1+alpha*(cp.power(np.divide(x, kappa), beta)))
 
 
 def phi(l, t):
