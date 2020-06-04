@@ -34,7 +34,11 @@ def viz_costs(edges, inv_edges, name = '', save = False, correct = False, beta =
     x = np.linspace(0, 10, 100)
     ncols = 2
     nrows = int(np.ceil(len(inv_edges)/ncols))
-    _, ax = plt.subplots(nrows,ncols,figsize = (12, 4*nrows))
+    if nrows ==1:
+        add = 1
+    else: 
+        add = 0
+    _, ax = plt.subplots(nrows+add,ncols,figsize = (12, 4*(nrows+add)))
 
     #loop over both edges
     for col in range(ncols):
