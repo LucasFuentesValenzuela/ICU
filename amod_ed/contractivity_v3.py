@@ -73,7 +73,7 @@ def viz_costs(edges, inv_edges, name = '', save = False, correct = False, beta =
             ax[row, col].set_ylabel("Cost")
             ax[row, col].legend()
             ax[row, col].set_title('OD (%d, %d)'%(o,d))
-            ax[row, col].set_ylim([cost[0]-10, inv_d[0]+10])
+            # ax[row, col].set_ylim([cost[0]-10, inv_d[0]+10])
     plt.tight_layout()
     if save:
         plt.savefig(os.path.join(IMAGES_PATH, name+".png"), transparent = True) 
