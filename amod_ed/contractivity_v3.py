@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import networkx as nx
+import pandas as pd
 
 
 """
@@ -283,10 +284,14 @@ def run_algorithm(
     else:
         nsolutions = len(r0)
 
-    r_tot = []
+    r_tot=[]
+    f_p_tot=[]
+    f_r_tot=[]
     #iteration over nsamples
     for i in range(nsolutions):
         r_k = []
+        f_p_k=[]
+        # f_r_k=[]
         r.value = np.array(r0[i])
         for j in range(max_iter):
             r_k.append(r.value)
@@ -295,9 +300,11 @@ def run_algorithm(
                 print("iteration %d, status %s" %(i, prob.status))
             new_r = get_new_r(f_p, map_edges, nodes)
             r.value = new_r
+            f_p_k.append(get_edge_flow(f_p, map_edges))
         r_tot.append(r_k)
+        f_p_tot.append(f_p_k)
 
-    return r_tot
+    return r_tot, nodes, f_p_tot
 
 def plot_results_run(r_tot, name = '', save = False):
     """
@@ -518,3 +525,24 @@ def get_d_values(inv_edges, d_var):
         o, d = inv_edges.loc[i, 'origin'], inv_edges.loc[i, 'destination']
         demand[(o,d)] = d_var.value[i]
     return demand
+
+
+def read_excels_icu(path):
+    """
+    Conver the excels generated for icu into the "language" of our
+    black box solver
+    """
+    edges = pd.read_excel(os.path.join(path, 'edges.xlsx'))
+    inv_edges = pd.read_excel(os.path.join(path, 'OD.xlsx'))
+
+    renaming={'head':'origin', 'tail': 'destination', 'capacity':'k'}
+    edges=edges.rename(columns=renaming)
+    edges['phi']=36*edges['length']/edges['time']
+    edges=edges[['origin', 'destination', 'phi', 'k']]
+
+    renaming={'capacity':'k'}
+    inv_edges['phi']=36*inv_edges['length']/inv_edges['time']
+    inv_edges=inv_edges.rename(columns=renaming)
+    inv_edges=inv_edges[['origin', 'destination', 'phi', 'k', 'shift']]
+
+    return edges, inv_edges

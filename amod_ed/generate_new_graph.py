@@ -19,7 +19,7 @@ def main():
     #TODO: manage edge cases when n_OD is too large for instance
 
     args = parser.parse_args()
-    path = os.path.join('Data/', args.p)
+    path = os.path.join('/Users/lucasfuentes/icu/notebooks/Data_comparison', args.p)
 
     _, _ = generate_random_graph(
         args.nn, args.od, path)

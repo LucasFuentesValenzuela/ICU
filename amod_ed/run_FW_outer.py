@@ -6,7 +6,7 @@ from amod_ed.FW_OuterUpdate import solve
 from amod_ed.graph import construct_graph, get_edge_list
 
 
-DATA_PATH = '/Users/lucasfuentes/ASL/ICU/notebooks/Data'
+DATA_PATH = '/Users/lucasfuentes/ASL/ICU/notebooks/Data_comparison/'
 
 
 # TODO: minimize the amount of data saved when running experiments
@@ -108,7 +108,7 @@ def main():
     params['tol'] = tol
 
     # Save the different documents
-    to_save = [[], OD, ri_FW, n_outer, n_inner,
+    to_save = [G_FW, OD, ri_FW, n_outer, n_inner,
                balance, opt_res, OD_list, balance_list, params]
 
     print('Saving to external .pkl file')

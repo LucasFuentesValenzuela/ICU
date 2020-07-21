@@ -189,7 +189,7 @@ def _compute_nearest_feasible(f_r, r_i, A, norm=2):
         if r_i[i]<-eps:
             r_i_opt[i] = r_i[i]
 
-    constraints = [A*f == r_i_opt, f >= 0]
+    constraints = [A@f == r_i_opt, f >= 0]
 
     obj = cp.Minimize(cp.norm(f-f_r, norm))
     prob = cp.Problem(obj, constraints)

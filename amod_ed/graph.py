@@ -43,6 +43,8 @@ def generate_random_graph(n_nodes, n_OD_pairs, path):
             o = np.random.choice(o_list)
             d = np.random.choice(d_list)
             pair = [o, d]
+            if o==d:
+                continue
             if pair not in OD_list:
                 draw = False
         OD_list.append(pair)
