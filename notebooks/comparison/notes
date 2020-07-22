@@ -1,0 +1,1 @@
+In this folder, we will try to compare the solutions and performance of both iterative algorithms. One with blackbox solving at every step with cvx, the other one with the relaxation from Kiril. 

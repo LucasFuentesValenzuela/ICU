@@ -1,0 +1,3 @@
+In this branch, we are introducing a way to smooth out the ri but only after there has been enough progress
+
+The reason is that smoothing out the ri_s directly is bad!
