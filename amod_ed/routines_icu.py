@@ -3,7 +3,7 @@ from amod_ed.helpers_icu import BPR, BPR_int, BPR_int_val
 import numpy as np
 import networkx as nx
 import cvxpy as cp
-
+BETA=1
 
 def update_costs(G):
     G = G.copy()
@@ -13,7 +13,7 @@ def update_costs(G):
         x = G[e[0]][e[1]]['f_m']+G[e[0]][e[1]]['f_r']
         phi = G[e[0]][e[1]]['phi']
         k = G[e[0]][e[1]]['k']
-        G[e[0]][e[1]]['cost'] = BPR(phi, x, k)
+        G[e[0]][e[1]]['cost'] = BPR(phi, x, k, beta=BETA)
 
         # if the capacity is too small (only happens for the edges to R)
         # then we can say that there is no flow there actually
@@ -287,7 +287,7 @@ def Total_Cost_line_search(G, y_k, a_k, edge_list):
         # if e[1] == 'R':
             # continue
 
-        cost_edge += BPR_int(phi, flow_tmp, k, beta=4)
+        cost_edge += BPR_int(phi, flow_tmp, k, beta=BETA)
 
         if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
             cost_edge -= (flow_tmp)*G[e[0]][e[1]]['shift']
@@ -338,7 +338,7 @@ def Total_Cost_line_search_val(G, y_k, a_k, edge_list):
             # continue
 
         # cost_edge += BPR_int(phi, flow_tmp, k, beta=4)
-        cost_edge += BPR_int_val(phi, flow_tmp, k, beta=4)
+        cost_edge += BPR_int_val(phi, flow_tmp, k, beta=BETA)
         
         if G[e[0]][e[1]]['sign'] == (-1):  # we have a negative edge
             cost_edge -= (flow_tmp)*G[e[0]][e[1]]['shift']

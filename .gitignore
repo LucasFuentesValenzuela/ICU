@@ -1,6 +1,8 @@
 notebooks/.vscode/
 notebooks/Data/
 notebooks/fixed_point_methods/Data/
+notebooks/Data_comparison/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

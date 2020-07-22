@@ -84,7 +84,7 @@ def main():
     print("     fu: ", fixed_update)
 
     ri_smoothing = False
-    FW_tol = 10**-8
+    FW_tol = 10**-6
     tol = 10**-10
 
     G_0, OD = construct_graph(path, L_rebalancing_edge=L_r)

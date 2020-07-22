@@ -15,6 +15,7 @@ from amod_ed.flows_init import initialize_flows
 # TODO: make line search work
 # TODO: make what we save consistent (same length, etc.)
 # TODO: decide what to do with evolving tol
+# TODO: introduce beta as a parameter to your problem
 
 
 def solve(
